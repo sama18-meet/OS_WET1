@@ -6,8 +6,13 @@
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
+
 class Command {
 // TODO: Add your data members
+ protected:
+  char* args[COMMAND_MAX_ARGS + 1];
+  int num_args;
+
  public:
   Command(const char* cmd_line);
   virtual ~Command();
@@ -16,13 +21,13 @@ class Command {
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
 };
+/*
 
 class BuiltInCommand : public Command {
  public:
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
 };
-
 class ExternalCommand : public Command {
  public:
   ExternalCommand(const char* cmd_line);
@@ -47,27 +52,43 @@ class RedirectionCommand : public Command {
   //void prepare() override;
   //void cleanup() override;
 };
+*/
 
-class ChangeDirCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-  ChangeDirCommand(const char* cmd_line, char** plastPwd);
-  virtual ~ChangeDirCommand() {}
-  void execute() override;
-};
-
-class GetCurrDirCommand : public BuiltInCommand {
+class SmallShell;
+class ChangePromptCommand : public Command { // need to change this to inherit from Command instead of BuiltInCommand
+ private:
+  char* new_prompt;
  public:
-  GetCurrDirCommand(const char* cmd_line);
-  virtual ~GetCurrDirCommand() {}
+  ChangePromptCommand(const char* cmd_line);
+  ~ChangePromptCommand() = default;
   void execute() override;
 };
 
-class ShowPidCommand : public BuiltInCommand {
+
+class ShowPidCommand : public Command {
  public:
-  ShowPidCommand(const char* cmd_line);
-  virtual ~ShowPidCommand() {}
+  ShowPidCommand(const char* cmd_line) : Command(cmd_line) {};
+  virtual ~ShowPidCommand() = default;
   void execute() override;
 };
+
+class GetCurrDirCommand : public Command {
+ public:
+  GetCurrDirCommand(const char* cmd_line) : Command(cmd_line) {};
+  virtual ~GetCurrDirCommand() = default;
+  void execute() override;
+};
+
+
+class ChangeDirCommand : public Command {
+ public:
+  ChangeDirCommand(const char* cmd_line) : Command(cmd_line) {};
+  virtual ~ChangeDirCommand() = default;
+  void execute() override;
+};
+
+
+/*
 
 class JobsList;
 class QuitCommand : public BuiltInCommand {
@@ -124,7 +145,6 @@ class BackgroundCommand : public BuiltInCommand {
 };
 
 class TimeoutCommand : public BuiltInCommand {
-/* Optional */
 // TODO: Add your data members
  public:
   explicit TimeoutCommand(const char* cmd_line);
@@ -133,7 +153,6 @@ class TimeoutCommand : public BuiltInCommand {
 };
 
 class FareCommand : public BuiltInCommand {
-  /* Optional */
   // TODO: Add your data members
  public:
   FareCommand(const char* cmd_line);
@@ -142,7 +161,6 @@ class FareCommand : public BuiltInCommand {
 };
 
 class SetcoreCommand : public BuiltInCommand {
-  /* Optional */
   // TODO: Add your data members
  public:
   SetcoreCommand(const char* cmd_line);
@@ -151,31 +169,45 @@ class SetcoreCommand : public BuiltInCommand {
 };
 
 class KillCommand : public BuiltInCommand {
-  /* Bonus */
  // TODO: Add your data members
  public:
   KillCommand(const char* cmd_line, JobsList* jobs);
   virtual ~KillCommand() {}
   void execute() override;
 };
+*/
 
-class SmallShell {
+class SmallShell { // singelton
  private:
-  // TODO: Add your data members
+  std::string prompt;
+  pid_t pid;
+  std::string old_pwd;
+ private:
   SmallShell();
  public:
-  Command *CreateCommand(const char* cmd_line);
-  SmallShell(SmallShell const&)      = delete; // disable copy ctor
-  void operator=(SmallShell const&)  = delete; // disable = operator
-  static SmallShell& getInstance() // make SmallShell singleton
+  SmallShell(SmallShell const&)      = delete;
+  void operator=(SmallShell const&)  = delete;
+  ~SmallShell() = default;
+  static SmallShell& getInstance()
   {
-    static SmallShell instance; // Guaranteed to be destroyed.
-    // Instantiated on first use.
+    static SmallShell instance;
     return instance;
   }
-  ~SmallShell();
+  Command *CreateCommand(const char* cmd_line);
   void executeCommand(const char* cmd_line);
-  // TODO: add extra methods as needed
+  // prompt
+  std::string getPrompt();
+  void setPrompt(std::string new_prompt);
+  void resetPrompt();
+  // pid
+  pid_t getPid() { return pid; };
+  // cwd
+  std::string getCwd();
+  void setCwd(std::string new_path);
+  std::string getOldPwd() { return old_pwd; }
+  // error handling
+  void syscallErrorHandler(std::string syscall_name);
+  
 };
 
 #endif //SMASH_COMMAND_H_
