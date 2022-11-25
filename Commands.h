@@ -2,7 +2,21 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
-
+#include <string.h>
+#include <iostream>
+#include <vector>
+#include<time.h>
+#include <sstream>
+#include <iomanip>
+#include <unistd.h>
+#include<list>
+#include<signal.h>
+#include <string>
+#include <sys/wait.h>
+#include <iomanip>
+#include <fcntl.h>
+#include <memory>
+#include <bits/stdc++.h>
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -11,7 +25,9 @@ class Command {
 // TODO: Add your data members
  protected:
   char* args[COMMAND_MAX_ARGS + 1];
+  char *command_line;
   int num_args;
+  bool Is_back_ground;
 
  public:
   Command(const char* cmd_line);
@@ -28,13 +44,25 @@ class BuiltInCommand : public Command {
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
 };
+ */
 class ExternalCommand : public Command {
+private:
+    bool Complex_Command= false;
+    bool Sleep_Command= false;
  public:
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
-};
 
+    void setComplexCommand(bool complexCommand) {
+        Complex_Command = complexCommand;
+    }
+
+    bool isComplexCommand() const {
+        return Complex_Command;
+    }
+};
+/*
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:
@@ -57,7 +85,7 @@ class RedirectionCommand : public Command {
 class SmallShell;
 class ChangePromptCommand : public Command { // need to change this to inherit from Command instead of BuiltInCommand
  private:
-  char* new_prompt;
+  std::string new_prompt;
  public:
   ChangePromptCommand(const char* cmd_line);
   ~ChangePromptCommand() = default;
