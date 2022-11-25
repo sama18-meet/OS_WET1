@@ -226,14 +226,12 @@ void ExternalCommand::execute() {
         {
             setpgrp();
             _removeBackgroundSign(this->command_line); ///check if command line is corrupted
-            const char* path_args[] = {"/bin/bash","-c",this->command_line, nullptr};
-            if (execv(path_args[0], (char**)path_args) == -1)
-            {
+            const char *path_args[] = {"/bin/bash", "-c", this->command_line, nullptr};
+            if (execv(path_args[0], (char **) path_args) == -1) {
                 perror("smash error: execv failed");
                 return;
             }
-        }
-        else // using exec v
+        } else // using exec v
         {
             setpgrp();
             std::stringstream ss(this->command_line);
@@ -243,28 +241,28 @@ void ExternalCommand::execute() {
 
             ss >> path;
 
-            while (ss>>buff)
-            {
-                args+=buff;
-                args+=" ";
+            while (ss >> buff) {
+                args += buff;
+                args += " ";
             }
-            const char* filepath=path.c_str();
-            const char* path_args[] = {args.c_str(),nullptr};
-            if (args=="")
+            if (args.size()>1)
             {
-                const char* path_args1[] = {nullptr};
-                if (execvp(filepath,(char**)path_args1) == -1)
-                {
+                args.pop_back();
+            }
+            const char *filepath = path.c_str();
+            if (args == "") {
+                const char *path_args[] = {path.c_str(), nullptr, nullptr};
+                if (execvp(filepath, (char **) path_args) == -1) {
+                    perror("smash error: execvp failed");
+                    return;
+                }
+            } else {
+                const char *path_args[] = {path.c_str(), args.c_str(), nullptr};
+                if (execvp(filepath, (char **) path_args) == -1) {
                     perror("smash error: execvp failed");
                     return;
                 }
             }
-            else if (execvp(filepath, (char**)path_args) == -1)
-            {
-                perror("smash error: execvp failed");
-                return;
-            }
-
         }
     }
     else if (pid>0) ///that is the father, should wait for son and add to jop list if its a back ground
