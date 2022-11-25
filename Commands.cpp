@@ -222,7 +222,7 @@ void ExternalCommand::execute() {
     }
     else if (pid==0) //the son runs
     {
-        if (this->Complex_Command || this->Sleep_Command) // use bash
+        if (this->Complex_Command && !this->Sleep_Command) // use bash
         {
             setpgrp();
             _removeBackgroundSign(this->command_line); ///check if command line is corrupted
@@ -253,15 +253,15 @@ void ExternalCommand::execute() {
             if (args=="")
             {
                 const char* path_args1[] = {nullptr};
-                if (execv(filepath,(char**)path_args1) == -1)
+                if (execvp(filepath,(char**)path_args1) == -1)
                 {
-                    perror("smash error: execv failed");
+                    perror("smash error: execvp failed");
                     return;
                 }
             }
-            else if (execv(filepath, (char**)path_args) == -1)
+            else if (execvp(filepath, (char**)path_args) == -1)
             {
-                perror("smash error: execv failed");
+                perror("smash error: execvp failed");
                 return;
             }
 
