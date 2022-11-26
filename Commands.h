@@ -13,6 +13,8 @@
 #include<signal.h>
 #include <string>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <iomanip>
 #include <fcntl.h>
 #include <memory>

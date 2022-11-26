@@ -267,7 +267,18 @@ void ExternalCommand::execute() {
     }
     else if (pid>0) ///that is the father, should wait for son and add to jop list if its a back ground
     {
-
+if (!this->Is_back_ground) ///father should wait
+        {
+            if (waitpid(pid, nullptr, WUNTRACED) == -1)
+            {
+                perror("smash error: waitpid failed");
+                return;
+            }
+        }
+        else
+        {
+            ///here i should add it to sama's jop list i think
+        }
     }
 }
 
