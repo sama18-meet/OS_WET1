@@ -2,6 +2,23 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
+#include <string.h>
+#include <iostream>
+#include <vector>
+#include<time.h>
+#include <sstream>
+#include <iomanip>
+#include <unistd.h>
+#include<list>
+#include<signal.h>
+#include <string>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <iomanip>
+#include <fcntl.h>
+#include <memory>
+#include <bits/stdc++.h>
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
@@ -33,17 +50,29 @@ class Command {
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
+  BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() = default;
 };
-/*
 class ExternalCommand : public Command {
+private:
+    bool Complex_Command= false;
+    bool Sleep_Command= false;
+    bool Is_back_ground;
  public:
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
+    void setComplexCommand(bool complexCommand) {
+        Complex_Command = complexCommand;
+    }
+
+    bool isComplexCommand() const {
+        return Complex_Command;
+    }
+
 };
 
+/*
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:

@@ -86,6 +86,18 @@ void _removeBackgroundSign(char* cmd_line) {
   cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+bool ContainsWildcards(string buffer)
+{
+    if (buffer=="*" || buffer=="?"){
+        return true;
+    }
+    for (unsigned int i = 0; i < buffer.size(); ++i) {
+        if (buffer[i]=='*' || buffer[i]=='?'){
+            return true;
+        }
+    }
+    return false;
+}
 
 ///////////////////////////////////////////////////////////
 // Command methods implementation
@@ -104,6 +116,11 @@ Command::~Command() {
 	}
 }
 
+
+BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
+	_removeBackgroundSign(this->cmd_line);
+	_removeBackgroundSign(this->args[num_args-1]);
+}
 
 ///////////////////////////////////////////////////////////
 // ChangePromptCommand methods implementation
@@ -163,6 +180,103 @@ void ChangeDirCommand::execute() {
 	}
 	smash.setCwd(string(args[1]));
 }
+
+
+ 
+///////////////////////////////////////////////
+// ExternalCommand implementation
+///////////////////////////////////////////////
+ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
+	string temp = string (args[num_args-1]);
+	if (temp == "&" || temp.back() =='&')
+	{
+		this->Is_back_ground= true;
+	}
+	this->cmd_line = new char[string(cmd_line).length() + 1];
+	strcpy(this->cmd_line, cmd_line);
+	std::stringstream ss(cmd_line);
+	string buf;
+	while (ss >> buf) {
+        if (ContainsWildcards(buf)) {
+		this->setComplexCommand(true);
+        }
+        if (buf=="sleep" || buf=="sleep&")
+        {
+		Sleep_Command= true;
+        }
+    }
+}
+
+void ExternalCommand::execute() {
+   pid_t pid = fork();
+    if (pid < 0) //that is for error
+   {
+        std::cerr<<"smash error: fork failed"<<std::endl;
+        return;
+    }
+    else if (pid==0) //the son runs
+    {
+        if (this->Complex_Command && !this->Sleep_Command) // use bash
+        {
+            setpgrp();
+            _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
+            const char *path_args[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
+            if (execv(path_args[0], (char **) path_args) == -1) {
+                perror("smash error: execv failed");
+                return;
+            }
+        } else // using exec v
+        {
+            setpgrp();
+            std::stringstream ss(this->cmd_line);
+            string buff;
+            string args;
+            string path;
+
+            ss >> path;
+
+            while (ss >> buff) {
+                args += buff;
+                args += " ";
+            }
+            if (args.size()>1)
+            {
+                args.pop_back();
+            }
+            const char *filepath = path.c_str();
+            if (args == "") {
+                const char *path_args[] = {path.c_str(), nullptr, nullptr};
+                if (execvp(filepath, (char **) path_args) == -1) {
+                    perror("smash error: execvp failed");
+                    return;
+                }
+            } else {
+                const char *path_args[] = {path.c_str(), args.c_str(), nullptr};
+                if (execvp(filepath, (char **) path_args) == -1) {
+                    perror("smash error: execvp failed");
+                    return;
+                }
+            }
+        }
+    }
+    else if (pid>0) ///that is the father, should wait for son and add to jop list if its a back ground
+    {
+if (!this->Is_back_ground) ///father should wait
+        {
+            if (waitpid(pid, nullptr, WUNTRACED) == -1)
+            {
+                perror("smash error: waitpid failed");
+                return;
+            }
+        }
+        else
+        {
+            ///here i should add it to sama's jop list i think
+        }
+    }
+}
+
+
 
 ///////////////////////////////////////////////////////////
 ////// JOBS LIST
@@ -382,14 +496,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ChangeDirCommand(cmd_line);
   }
 
-  /*
-  else if ...
-  .....
   else {
-    return new ExternalCommand(cmd_line);
+    return new ExternalCommand(cmd_s.c_str());
   }
-  */
-
   return nullptr;
 }
 
