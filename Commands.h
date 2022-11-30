@@ -2,23 +2,7 @@
 #define SMASH_COMMAND_H_
 
 #include <vector>
-#include <string.h>
-#include <iostream>
-#include <vector>
-#include<time.h>
-#include <sstream>
-#include <iomanip>
-#include <unistd.h>
-#include<list>
-#include<signal.h>
-#include <string>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <iomanip>
-#include <fcntl.h>
-#include <memory>
-#include <bits/stdc++.h>
+
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 
@@ -26,15 +10,15 @@
 class Command {
 // TODO: Add your data members
  protected:
+  char* cmd_line;
   char* args[COMMAND_MAX_ARGS + 1];
-  char *command_line;
   int num_args;
-  bool Is_back_ground;
 
  public:
   Command(const char* cmd_line);
   virtual ~Command();
   virtual void execute() = 0;
+  char* getCmdLine() { return cmd_line; }
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
@@ -46,25 +30,13 @@ class BuiltInCommand : public Command {
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() {}
 };
- */
 class ExternalCommand : public Command {
-private:
-    bool Complex_Command= false;
-    bool Sleep_Command= false;
  public:
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
   void execute() override;
-
-    void setComplexCommand(bool complexCommand) {
-        Complex_Command = complexCommand;
-    }
-
-    bool isComplexCommand() const {
-        return Complex_Command;
-    }
 };
-/*
+
 class PipeCommand : public Command {
   // TODO: Add your data members
  public:
@@ -87,7 +59,7 @@ class RedirectionCommand : public Command {
 class SmallShell;
 class ChangePromptCommand : public Command { // need to change this to inherit from Command instead of BuiltInCommand
  private:
-  std::string new_prompt;
+  char* new_prompt;
  public:
   ChangePromptCommand(const char* cmd_line);
   ~ChangePromptCommand() = default;
@@ -118,36 +90,44 @@ class ChangeDirCommand : public Command {
 };
 
 
-/*
-
-class JobsList;
-class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
-public:
-  QuitCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~QuitCommand() {}
-  void execute() override;
-};
 
 
 class JobsList {
  public:
   class JobEntry {
-   // TODO: Add your data members
+      public:
+	int job_id;
+	std::string cmd_line;
+	int pid;
+	time_t starttime;
+	bool is_stopped;
+      public:
+	JobEntry() = delete;
+	JobEntry(JobEntry const&) = delete;
+	void operator=(JobEntry const&) = delete;
+	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, bool is_stopped = false)
+		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), is_stopped(is_stopped) {}
+	~JobEntry() = default;
+	void printJobEntry();
+	bool JobEntry::operator<(const JobEntry& j) const {
+		return (job_id < j.job_id);
+	}
+
+
   };
- // TODO: Add your data members
  public:
-  JobsList();
-  ~JobsList();
-  void addJob(Command* cmd, bool isStopped = false);
+  std::vector<JobEntry> all_jobs;
+ public:
+  JobsList() = default;
+  ~JobsList() = default;
+  void addJob(Command* cmd, int pid, bool is_stopped = false);
   void printJobsList();
-  void killAllJobs();
+  //void killAllJobs();
   void removeFinishedJobs();
-  JobEntry * getJobById(int jobId);
+  JobEntry& getJobById(int jobId);
   void removeJobById(int jobId);
-  JobEntry * getLastJob(int* lastJobId);
-  JobEntry *getLastStoppedJob(int *jobId);
-  // TODO: Add extra methods or modify exisitng ones as needed
+  JobEntry& getLastJob(int* lastJobId);
+  JobEntry& getLastStoppedJob(int *jobId);
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -173,6 +153,19 @@ class BackgroundCommand : public BuiltInCommand {
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
+
+/*
+
+class JobsList;
+class QuitCommand : public BuiltInCommand {
+// TODO: Add your data members
+public:
+  QuitCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~QuitCommand() {}
+  void execute() override;
+};
+
+
 
 class TimeoutCommand : public BuiltInCommand {
 // TODO: Add your data members
