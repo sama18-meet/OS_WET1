@@ -200,10 +200,6 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
         if (ContainsWildcards(buf)) {
 		this->setComplexCommand(true);
         }
-        if (buf=="sleep" || buf=="sleep&")
-        {
-		Sleep_Command= true;
-        }
     }
 }
 
@@ -216,7 +212,8 @@ void ExternalCommand::execute() {
     }
     else if (pid==0) //the son runs
     {
-        if (this->Complex_Command && !this->Sleep_Command) // use bash
+        _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
+        if (this->Complex_Command ) // use bash
         {
             setpgrp();
             _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
