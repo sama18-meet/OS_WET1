@@ -170,7 +170,7 @@ class JobsList {
 	static JobsList instance;
 	return instance;
   }
-  void addJob(Command* cmd, int pid, bool is_stopped = false);
+  void addJob(std::string cmd_line, int pid, bool is_stopped = false);
   void printJobsList();
   //void killAllJobs();
   void removeFinishedJobs();
@@ -192,8 +192,10 @@ class JobsCommand : public BuiltInCommand {
 };
 
 class ForegroundCommand : public BuiltInCommand {
+ private:
+  bool invalid_args;
  public:
-  ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  ForegroundCommand(const char* cmd_line);
   virtual ~ForegroundCommand() {}
   void execute() override;
 };

@@ -268,7 +268,8 @@ if (!this->Is_back_ground) ///father should wait
         }
         else
         {
-            ///here i should add it to sama's jop list i think
+		JobsList::getInstance().addJob(this->cmd_line, pid, false);
+		return;
         }
     }
 }
@@ -292,9 +293,8 @@ void JobsList::JobEntry::printJobEntry() {
 	}
 }
 
-void JobsList::addJob(Command* cmd, int pid, bool is_stopped) {
+void JobsList::addJob(std::string cmd_line, int pid, bool is_stopped) {
 	int job_id = max_jobid + 1;
-	char* cmd_line = cmd->getCmdLine();
 	time_t starttime;
 	time(&starttime); 
 	JobEntry j(job_id, cmd_line, pid, starttime, is_stopped);
@@ -338,7 +338,7 @@ void JobsList::removeJobById(int job_id) {
 		++it;
 	    }
 	}
-	max_jobid = second_max_job_id;
+	max_jobid = second_max_job_id == -1 ? 0 : second_max_job_id;
 }
 
 pid_t JobsList::getPidByJobId(int job_id) {
@@ -427,8 +427,19 @@ void JobsCommand::execute() {
 	jobs_list.printJobsList();
 }
 
+ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
+	invalid_args = false;
+	if (num_args > 2)
+		invalid_args = true;
+	if (num_args == 2) {
+		if (!is_number(args[1])) {
+			invalid_args = true;
+		}
+	}
+}
+
 void ForegroundCommand::execute() {
-	if (num_args > 2 || !is_number(args[1]) ) {
+	if (invalid_args) {
 		std::cerr << "smash error: fg: invalid arguments" << std::endl;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
@@ -444,7 +455,7 @@ void ForegroundCommand::execute() {
 }
 
 void BackgroundCommand::execute() {
-	if (num_args > 2 || !is_number(args[1]) ) {
+	if (num_args > 2 || ((num_args == 2) & !is_number(args[1])) ) {
 		std::cerr << "smash error: bg: invalid arguments" << std::endl;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
@@ -491,6 +502,15 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   }
   else if (firstWord.compare("cd") == 0) {
     return new ChangeDirCommand(cmd_line);
+  }
+  else if (firstWord.compare("jobs") == 0) {
+    return new JobsCommand(cmd_line);
+  }
+  else if (firstWord.compare("fg") == 0) {
+    return new ForegroundCommand(cmd_line);
+  }
+  else if (firstWord.compare("bg") == 0) {
+    return new BackgroundCommand(cmd_line);
   }
 
   else {
