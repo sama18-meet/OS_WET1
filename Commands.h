@@ -19,17 +19,24 @@ class Command {
   virtual ~Command();
   virtual void execute() = 0;
   char* getCmdLine() { return cmd_line; }
+  bool is_number(const std::string& s)
+  {
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+  }
+
   //virtual void prepare();
   //virtual void cleanup();
   // TODO: Add your extra methods if needed
 };
-/*
 
 class BuiltInCommand : public Command {
  public:
-  BuiltInCommand(const char* cmd_line);
-  virtual ~BuiltInCommand() {}
+  BuiltInCommand(const char* cmd_line) : Command(cmd_line) {};
+  virtual ~BuiltInCommand() = default;
 };
+/*
 class ExternalCommand : public Command {
  public:
   ExternalCommand(const char* cmd_line);
@@ -57,7 +64,7 @@ class RedirectionCommand : public Command {
 */
 
 class SmallShell;
-class ChangePromptCommand : public Command { // need to change this to inherit from Command instead of BuiltInCommand
+class ChangePromptCommand : public BuiltInCommand { // need to change this to inherit from Command instead of BuiltInCommand
  private:
   char* new_prompt;
  public:
@@ -67,24 +74,24 @@ class ChangePromptCommand : public Command { // need to change this to inherit f
 };
 
 
-class ShowPidCommand : public Command {
+class ShowPidCommand : public BuiltInCommand {
  public:
-  ShowPidCommand(const char* cmd_line) : Command(cmd_line) {};
+  ShowPidCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~ShowPidCommand() = default;
   void execute() override;
 };
 
-class GetCurrDirCommand : public Command {
+class GetCurrDirCommand : public BuiltInCommand {
  public:
-  GetCurrDirCommand(const char* cmd_line) : Command(cmd_line) {};
+  GetCurrDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~GetCurrDirCommand() = default;
   void execute() override;
 };
 
 
-class ChangeDirCommand : public Command {
+class ChangeDirCommand : public BuiltInCommand {
  public:
-  ChangeDirCommand(const char* cmd_line) : Command(cmd_line) {};
+  ChangeDirCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~ChangeDirCommand() = default;
   void execute() override;
 };
@@ -98,64 +105,79 @@ class JobsList {
       public:
 	int job_id;
 	std::string cmd_line;
-	int pid;
+	pid_t pid;
 	time_t starttime;
 	bool is_stopped;
       public:
-	JobEntry() = delete;
-	JobEntry(JobEntry const&) = delete;
-	void operator=(JobEntry const&) = delete;
+	JobEntry() : job_id(-1) {}; // invalid
+	JobEntry(JobEntry const&) = default;
+	JobEntry& operator=(JobEntry const&) = default;
 	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, bool is_stopped = false)
 		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), is_stopped(is_stopped) {}
 	~JobEntry() = default;
 	void printJobEntry();
-	bool JobEntry::operator<(const JobEntry& j) const {
-		return (job_id < j.job_id);
-	}
+	bool operator<(const JobEntry& j) const { return job_id < j.job_id; }
+	//bool operator>(const JobEntry& j) const { return job_id > j.job_id; }
+	//bool operator==(const JobEntry& j) const { return job_id == j.job_id; }
+	int getJobId() { return job_id; }
+	int getPid() { return pid; }
+	bool isStopped() { return is_stopped; }
+	std::string getCmdLine() { return cmd_line; }
+	void removeStoppedFlag() { is_stopped = false; }
 
 
   };
  public:
   std::vector<JobEntry> all_jobs;
+  int max_jobid;
+  int max_stopped_job_id;
+ private:
+  JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0) {}
  public:
-  JobsList() = default;
+  JobsList(const JobsList&) = delete;
+  void operator=(const JobsList&) = delete;
   ~JobsList() = default;
+  static JobsList& getInstance() {
+	static JobsList instance;
+	return instance;
+  }
   void addJob(Command* cmd, int pid, bool is_stopped = false);
   void printJobsList();
   //void killAllJobs();
   void removeFinishedJobs();
-  JobEntry& getJobById(int jobId);
+  pid_t getPidByJobId(int jobId);
+  JobEntry getJobById(int jobId);
   void removeJobById(int jobId);
-  JobEntry& getLastJob(int* lastJobId);
-  JobEntry& getLastStoppedJob(int *jobId);
+  //JobEntry& getLastJob(int* lastJobId);
+  //JobEntry& getLastStoppedJob(int *jobId);
+  bool bringToFg(int job_id, int* err);
+  bool resumeJobInBg(int job_id, int* err);
+  int getMaxStoppedJobId();
 };
 
 class JobsCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  JobsCommand(const char* cmd_line, JobsList* jobs);
+  JobsCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~JobsCommand() {}
   void execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  ForegroundCommand(const char* cmd_line, JobsList* jobs);
+  ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
 
 class BackgroundCommand : public BuiltInCommand {
- // TODO: Add your data members
  public:
-  BackgroundCommand(const char* cmd_line, JobsList* jobs);
+  BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
 
-/*
 
+/*
 class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members
