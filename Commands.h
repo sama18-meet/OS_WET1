@@ -1,6 +1,6 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
-#include <sched.h>
+
 #include <vector>
 #include <string.h>
 #include <iostream>
@@ -56,7 +56,8 @@ class BuiltInCommand : public Command {
 class ExternalCommand : public Command {
 private:
     bool Complex_Command= false;
-    bool Is_back_ground= false;
+    bool Sleep_Command= false;
+    bool Is_back_ground;
  public:
   ExternalCommand(const char* cmd_line);
   virtual ~ExternalCommand() {}
@@ -71,58 +72,24 @@ private:
 
 };
 
-
+/*
 class PipeCommand : public Command {
   // TODO: Add your data members
-  Command * Fisrtpipe;
-    Command * Seconedpipe;
  public:
-    PipeCommand(const char* cmd_line) : Command::Command(cmd_line)
-    {};
+  PipeCommand(const char* cmd_line);
   virtual ~PipeCommand() {}
   void execute() override;
 };
 
-class SpecialPipeCommand : public Command {
-    // TODO: Add your data members
-    Command * Fisrtpipe;
-    Command * Seconedpipe;
-public:
-    SpecialPipeCommand(const char* cmd_line) : Command::Command(cmd_line)
-    {};
-    virtual ~SpecialPipeCommand() {}
-    void execute() override;
-};
-
-
-
-class RedirectionCommandOverRide : public Command {
-    Command * FisrtCommand;
-    std::string path;
+class RedirectionCommand : public Command {
  // TODO: Add your data members
  public:
-  explicit RedirectionCommandOverRide(const char* cmd_line): Command::Command(cmd_line)
-  {};
-  virtual ~RedirectionCommandOverRide() {}
+  explicit RedirectionCommand(const char* cmd_line);
+  virtual ~RedirectionCommand() {}
   void execute() override;
   //void prepare() override;
   //void cleanup() override;
 };
-
-class Appened : public Command {
-    Command * FirstCommand;
-    std::string path;
-    // TODO: Add your data members
-public:
-    explicit Appened(const char* cmd_line): Command::Command(cmd_line)
-    {};
-    virtual ~Appened() {}
-    void execute() override;
-    //void prepare() override;
-    //void cleanup() override;
-};
-/*
-
 */
 
 class SmallShell;
@@ -159,15 +126,6 @@ class ChangeDirCommand : public BuiltInCommand {
 };
 
 
-class SetcoreCommand : public BuiltInCommand {
-    int core_num;
-    int job_num;
-public:
-    SetcoreCommand(const char* cmd_line);
-    virtual ~SetcoreCommand() {}
-    void execute() override;
-};
-
 
 
 class JobsList {
@@ -202,17 +160,19 @@ class JobsList {
   std::vector<JobEntry> all_jobs;
   int max_jobid;
   int max_stopped_job_id;
+  pid_t fg_proc;
+  std::string fg_proc_cmd_line;
  private:
+  JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0), fg_proc(-1), fg_proc_cmd_line("") {}
  public:
-    JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0) {}
-    JobsList(const JobsList&) = delete;
+  JobsList(const JobsList&) = delete;
   void operator=(const JobsList&) = delete;
   ~JobsList() = default;
   static JobsList& getInstance() {
 	static JobsList instance;
 	return instance;
   }
-  void addJob(Command* cmd, int pid, bool is_stopped = false);
+  void addJob(std::string cmd_line, int pid, bool is_stopped = false);
   void printJobsList();
   //void killAllJobs();
   void removeFinishedJobs();
@@ -223,7 +183,10 @@ class JobsList {
   //JobEntry& getLastStoppedJob(int *jobId);
   bool bringToFg(int job_id, int* err);
   bool resumeJobInBg(int job_id, int* err);
+  pid_t sendFgProcToBg();
   int getMaxStoppedJobId();
+  void rmFgProc() { fg_proc = -1; fg_proc_cmd_line = ""; };
+  void setFgProcId(pid_t pid, std::string cmd_line) { fg_proc = pid; fg_proc_cmd_line = cmd_line; };
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -234,8 +197,10 @@ class JobsCommand : public BuiltInCommand {
 };
 
 class ForegroundCommand : public BuiltInCommand {
+ private:
+  bool invalid_args;
  public:
-  ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  ForegroundCommand(const char* cmd_line);
   virtual ~ForegroundCommand() {}
   void execute() override;
 };
@@ -276,7 +241,13 @@ class FareCommand : public BuiltInCommand {
   void execute() override;
 };
 
-
+class SetcoreCommand : public BuiltInCommand {
+  // TODO: Add your data members
+ public:
+  SetcoreCommand(const char* cmd_line);
+  virtual ~SetcoreCommand() {}
+  void execute() override;
+};
 
 class KillCommand : public BuiltInCommand {
  // TODO: Add your data members
@@ -292,12 +263,11 @@ class SmallShell { // singelton
   std::string prompt;
   pid_t pid;
   std::string old_pwd;
-private:
+ private:
   SmallShell();
  public:
-    JobsList jobList;
-    SmallShell(SmallShell const&);
-  void operator=(SmallShell const&);
+  SmallShell(SmallShell const&)      = delete;
+  void operator=(SmallShell const&)  = delete;
   ~SmallShell() = default;
   static SmallShell& getInstance()
   {

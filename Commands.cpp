@@ -1,18 +1,14 @@
 #include <unistd.h>
 #include <string.h>
-#include <errno.h>
 #include <iostream>
 #include <vector>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
+#include <limits.h>
+#include <algorithm>
+#include <assert.h>
 #include "Commands.h"
-#include <time.h>
-#include <unistd.h>
-#include <utime.h>
-#include <fcntl.h>
-#include <ctime>
-#include <sys/stat.h>
 
 using namespace std;
 
@@ -131,7 +127,7 @@ BuiltInCommand::BuiltInCommand(const char* cmd_line) : Command(cmd_line) {
 
 
 ChangePromptCommand::ChangePromptCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
-	new_prompt = args[1];
+	new_prompt = args[1];	
 }
 
 void ChangePromptCommand::execute() {
@@ -186,7 +182,7 @@ void ChangeDirCommand::execute() {
 }
 
 
-
+ 
 ///////////////////////////////////////////////
 // ExternalCommand implementation
 ///////////////////////////////////////////////
@@ -208,19 +204,19 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 }
 
 void ExternalCommand::execute() {
-    _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
-    pid_t pid = fork();
+   pid_t pid = fork();
     if (pid < 0) //that is for error
-    {
+   {
         std::cerr<<"smash error: fork failed"<<std::endl;
         return;
     }
     else if (pid==0) //the son runs
     {
+        _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
         if (this->Complex_Command ) // use bash
         {
             setpgrp();
-
+            _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
             const char *path_args[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
             if (execv(path_args[0], (char **) path_args) == -1) {
                 perror("smash error: execv failed");
@@ -262,18 +258,22 @@ void ExternalCommand::execute() {
     }
     else if (pid>0) ///that is the father, should wait for son and add to jop list if its a back ground
     {
-        if (!this->Is_back_ground) ///father should wait
+if (!this->Is_back_ground) ///father should wait
         {
+	    JobsList::getInstance().setFgProcId(pid, cmd_line);
             if (waitpid(pid, nullptr, WUNTRACED) == -1)
             {
                 perror("smash error: waitpid failed");
                 return;
             }
+	    else {
+		JobsList::getInstance().rmFgProc();
+	    }
         }
         else
         {
-            ///here i should add it to sama's jop list i think
-            SmallShell::getInstance().jobList.addJob(this,pid, false);
+		JobsList::getInstance().addJob(this->cmd_line, pid, false);
+		return;
         }
     }
 }
@@ -297,11 +297,10 @@ void JobsList::JobEntry::printJobEntry() {
 	}
 }
 
-void JobsList::addJob(Command* cmd, int pid, bool is_stopped) {
+void JobsList::addJob(std::string cmd_line, int pid, bool is_stopped) {
 	int job_id = max_jobid + 1;
-	char* cmd_line = cmd->getCmdLine();
 	time_t starttime;
-	time(&starttime);
+	time(&starttime); 
 	JobEntry j(job_id, cmd_line, pid, starttime, is_stopped);
 	all_jobs.push_back(j);
 	max_jobid++;
@@ -343,7 +342,7 @@ void JobsList::removeJobById(int job_id) {
 		++it;
 	    }
 	}
-	max_jobid = second_max_job_id;
+	max_jobid = second_max_job_id == -1 ? 0 : second_max_job_id;
 }
 
 pid_t JobsList::getPidByJobId(int job_id) {
@@ -426,21 +425,40 @@ bool JobsList::resumeJobInBg(int job_id, int* err) {
 	return true;
 }
 
+pid_t JobsList::sendFgProcToBg() {
+	if (fg_proc == -1)
+		return -1;
+	kill(fg_proc, SIGSTOP);
+	addJob(fg_proc_cmd_line, fg_proc, true);
+	return fg_proc;
+}
+
 void JobsCommand::execute() {
 	JobsList& jobs_list = JobsList::getInstance();
 	jobs_list.removeFinishedJobs();
 	jobs_list.printJobsList();
 }
 
+ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
+	invalid_args = false;
+	if (num_args > 2)
+		invalid_args = true;
+	if (num_args == 2) {
+		if (!is_number(args[1])) {
+			invalid_args = true;
+		}
+	}
+}
+
 void ForegroundCommand::execute() {
-	if (num_args > 2 || !is_number(args[1]) ) {
+	if (invalid_args) {
 		std::cerr << "smash error: fg: invalid arguments" << std::endl;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
 	int err;
 	bool success = JobsList::getInstance().bringToFg(job_id, &err);
 	if (!success) {
-		if (err == JOBS_LIST_EMPTY)
+		if (err == JOBS_LIST_EMPTY)	
 			std::cerr << "smash error: fg: jobs list is empty" << std::endl;
 		else if (err == JOB_ID_NOT_EXIST)
 			std::cerr << "smash error: fg: job-id " << job_id << "does not exist" << std::endl;
@@ -449,7 +467,7 @@ void ForegroundCommand::execute() {
 }
 
 void BackgroundCommand::execute() {
-	if (num_args > 2 || !is_number(args[1]) ) {
+	if (num_args > 2 || ((num_args == 2) & !is_number(args[1])) ) {
 		std::cerr << "smash error: bg: invalid arguments" << std::endl;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
@@ -485,44 +503,28 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   string cmd_s = _trim(string(cmd_line));
   string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" "));
 
-
-    std::stringstream ss (cmd_s);
-    string buffer;
-    while (ss >> buffer)
-    {
-        if (buffer=="|")
-        {
-            return new PipeCommand(cmd_line);
-        }
-        else if (buffer=="|&")
-        {
-            return new SpecialPipeCommand(cmd_line);
-        }
-
-        else if (buffer == ">") {
-            return new RedirectionCommandOverRide(cmd_line);
-        }
-        else if (buffer == ">>"){
-            return new Appened(cmd_line);
-        }
-    }
-
-
-  if (firstWord.compare("chprompt") == 0 || firstWord.compare("chprompt&")==0) {
+  if (firstWord.compare("chprompt") == 0) {
     return new ChangePromptCommand(cmd_line);
   }
-  else if (firstWord.compare("showpid") == 0 || firstWord.compare("showpid&") == 0) {
+  else if (firstWord.compare("showpid") == 0) {
     return new ShowPidCommand(cmd_line);
   }
-  else if (firstWord.compare("pwd") == 0 || firstWord.compare("pwd&") == 0) {
+  else if (firstWord.compare("pwd") == 0) {
     return new GetCurrDirCommand(cmd_line);
   }
-  else if (firstWord.compare("cd") == 0 || firstWord.compare("cd&") == 0 ) {
+  else if (firstWord.compare("cd") == 0) {
     return new ChangeDirCommand(cmd_line);
   }
-  else if (firstWord.compare("setcore") == 0 || firstWord.compare("setcore&") == 0 ) {
-      return new SetcoreCommand(cmd_line);
+  else if (firstWord.compare("jobs") == 0) {
+    return new JobsCommand(cmd_line);
   }
+  else if (firstWord.compare("fg") == 0) {
+    return new ForegroundCommand(cmd_line);
+  }
+  else if (firstWord.compare("bg") == 0) {
+    return new BackgroundCommand(cmd_line);
+  }
+
   else {
     return new ExternalCommand(cmd_s.c_str());
   }
@@ -580,270 +582,3 @@ void SmallShell::syscallErrorHandler(std::string syscall_name) {
 }
 
 
-void PipeCommand::execute() {
-    SmallShell& smash = SmallShell::getInstance();
-    _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
-    string command1;
-    string command2;
-
-    std::stringstream ss(this->cmd_line);
-    bool found = false;
-    string buffer;
-    while (ss >> buffer) {
-        if (buffer == "|"){
-            found = true;
-        }
-        if(!found){
-            command1 += " " + buffer;
-        }
-        else if (buffer != "|"){
-            command2 += " " + buffer;
-        }
-    }
-    Fisrtpipe = smash.getInstance().CreateCommand(command1.c_str());
-    Seconedpipe =smash.getInstance().CreateCommand(command2.c_str());
-
-    int fd[2];
-    pipe(fd);
-    int pid_1= fork();
-    if(pid_1 == -1){
-        perror("smash error: fork failed");
-    }
-    if(pid_1 == 0){
-        setpgrp();
-        if (dup2(fd[1], 1) == -1) {
-            perror("smash error: dup2 failed");
-            return;
-        }
-        if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        Fisrtpipe->execute();
-        exit(1);
-    }
-    waitpid(pid_1,NULL,0);
-    int pid_2= fork();
-    if(pid_2 == -1){
-        perror("smash error: fork failed");
-    }
-    if (pid_2 == 0) {
-        setpgrp();
-        if (dup2(fd[0], 0) == -1) {
-            perror("smash error: dup2 failed");
-            return;
-        }
-        if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        Seconedpipe->execute();
-        exit(1);
-    }
-    if(pid_1 !=0 && pid_2 != 0) {
-        if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-            if (close(fd[1]) == -1) {
-                perror("smash error: close failed");
-                return;
-            }
-        waitpid(pid_2,NULL,0);
-    }
-}
-
-void SpecialPipeCommand::execute(){
-    SmallShell& smash = SmallShell::getInstance();
-    _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
-    string command1;
-    string command2;
-
-    std::stringstream ss(this->cmd_line);
-    bool found = false;
-    string buffer;
-    while (ss >> buffer) {
-        if (buffer == "|"){
-            found = true;
-        }
-        if(!found){
-            command1 += " " + buffer;
-        }
-        else if (buffer != "|"){
-            command2 += " " + buffer;
-        }
-    }
-    Fisrtpipe = smash.getInstance().CreateCommand(command1.c_str());
-    Seconedpipe =smash.getInstance().CreateCommand(command2.c_str());
-
-    int fd[2];
-    pipe(fd);
-    int pid_1= fork();
-    if(pid_1 == -1){
-        perror("smash error: fork failed");
-    }
-    if(pid_1 == 0){
-        setpgrp();
-        if (dup2(fd[1], 2) == -1)
-        {
-            perror("smash error: dup2 failed");
-            return;
-        }
-        if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        Fisrtpipe->execute();
-        exit(1);
-    }
-    waitpid(pid_1,NULL,0);
-
-    int pid_2= fork();
-    if(pid_2 == -1){
-        perror("smash error: fork failed");
-    }
-    if (pid_2 == 0) {
-        setpgrp();
-        if (dup2(fd[0], 0) == -1)
-        {
-            perror("smash error: dup2 failed");
-            return;
-        }
-        if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
-            return;
-        }
-        Seconedpipe->execute();
-        exit(1);
-    }
-    if(pid_1 !=0 && pid_2 != 0) {
-        close(fd[0]);
-        close(fd[1]);
-        waitpid(pid_2,NULL,0);
-    }
-}
-
-void RedirectionCommandOverRide::execute() {
-    string command;
-    std::stringstream ss(cmd_line);
-    bool found = false;
-    string buffer;
-    while (ss >> buffer) {
-        if (buffer == ">") {
-            found = true;
-        }
-        if (!found) {
-            command += " " + buffer;
-        } else if (buffer != ">") {
-            path += buffer;
-        }
-    }
-    FisrtCommand = SmallShell::getInstance().CreateCommand(command.c_str());
-
-   ///////here the parameters are on
-    SmallShell::getInstance().jobList.removeFinishedJobs();
-
-    int out = dup(1);
-    if (out == -1) {
-        perror("smash error: dup failed");
-        return;
-    }
-    if (close(1) == -1) {
-        perror("smash error: close failed");
-        return;
-    }
-
-    int p1 = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0655);
-
-    if (p1 <= -1) {
-        perror("smash error: open failed");
-        if (dup2(out, 1) == -1) {
-            perror("smash error: dup2 failed");
-            return;
-        }
-        if (close(out) == -1)
-            perror("smash error: close failed");
-        return;
-    }
-
-    FisrtCommand->execute();
-
-    if (dup2(out, 1) == -1) {
-        perror("smash error: dup2 failed");
-        return;
-    }
-    if (close(out) == -1) {
-        perror("smash error: close failed");
-        return;
-    }
-}
-
-void Appened::execute() {}
-
-SetcoreCommand::SetcoreCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
-
-    std::stringstream ss(cmd_line);
-    std::string buffer;
-    stringstream buffer2;
-
-    int i=0;
-    while (ss >> buffer)
-    {
-        if(i==1)
-        {
-            buffer2 << buffer;
-            buffer2 >> this->job_num;
-        }
-        else if (i==2)
-        {
-            buffer2 << buffer;
-            buffer2 >> this->core_num;
-        }
-        else {
-            i++;
-        }
-    }
-}
-
-void SetcoreCommand::execute() {
-    if (this->num_args>2)
-    {
-        perror("smash error: fare: invalid arguments");
-        return;
-    }
-
-    cpu_set_t my_set;        /* Define my cpu_set bit mask. */
-    CPU_ZERO(&my_set);  // set all to zero
-    CPU_SET(this->core_num,&my_set);
-    pid_t pid =  SmallShell::getInstance().jobList.getPidByJobId(this->job_num);
-    if (pid<0)
-    {
-        std::cerr <<"smash error: setcore: job-id "<< this->job_num <<" does not exist" << std::endl;
-    }
-   if (sched_setaffinity(pid, sizeof(cpu_set_t), &my_set) == -1)
-   {
-       if (errno ==EINVAL || errno == EPERM   )
-       {
-           perror("smash error: fare: invalid core number");
-       }
-       else
-           perror("smash error: fare: invalid arguments");
-   }
-
-}

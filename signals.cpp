@@ -6,7 +6,10 @@
 using namespace std;
 
 void ctrlZHandler(int sig_num) {
-	// TODO: Add your implementation
+	std::cout << "smash: got ctrl-Z" << std::endl;
+	pid_t fg_pid = JobsList::getInstance().sendFgProcToBg();
+	if (fg_pid == -1) return;
+	std::cout << "smash: process " << fg_pid << " was stopped" << std::endl;
 }
 
 void ctrlCHandler(int sig_num) {
