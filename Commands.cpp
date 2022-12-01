@@ -1,7 +1,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
-#include <vector>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
@@ -9,16 +8,11 @@
 #include <algorithm>
 #include <assert.h>
 #include "Commands.h"
+#include "JobsList.h"
 
 using namespace std;
 
 const std::string WHITESPACE = " \n\r\t\f\v";
-
-#define JOBS_LIST_EMPTY 1
-#define JOB_ID_NOT_EXIST 2
-#define NO_STOPPED_JOBS 3
-#define JOB_ALREADY_RUNNING 4
-
 
 #if 0
 #define FUNC_ENTRY()  \
@@ -260,178 +254,23 @@ void ExternalCommand::execute() {
     {
 if (!this->Is_back_ground) ///father should wait
         {
-	    JobsList::getInstance().setFgProcId(pid, cmd_line);
+	    JobsList::getInstance().setFgProc(pid, cmd_line, 0);
             if (waitpid(pid, nullptr, WUNTRACED) == -1)
             {
                 perror("smash error: waitpid failed");
                 return;
             }
-	    else {
-		JobsList::getInstance().rmFgProc();
-	    }
+	    JobsList::getInstance().rmFgProc();
         }
         else
         {
-		JobsList::getInstance().addJob(this->cmd_line, pid, false);
+		JobsList::getInstance().addJob(this->cmd_line, pid, 0, false);
 		return;
         }
     }
 }
 
 
-
-///////////////////////////////////////////////////////////
-////// JOBS LIST
-///////////////////////////////////////////////////////////
-
-void JobsList::JobEntry::printJobEntry() {
-	time_t now;
-	time(&now);
-	time_t seconds_elapsed = difftime(now, starttime);
-	std::cout << "[" << job_id << "] " << cmd_line << " : " << pid << " " << seconds_elapsed << "secs";
-	if (!is_stopped) {
-		std::cout << std::endl;
-	}
-	else {
-		std::cout << " (stopped)" << std::endl;
-	}
-}
-
-void JobsList::addJob(std::string cmd_line, int pid, bool is_stopped) {
-	int job_id = max_jobid + 1;
-	time_t starttime;
-	time(&starttime); 
-	JobEntry j(job_id, cmd_line, pid, starttime, is_stopped);
-	all_jobs.push_back(j);
-	max_jobid++;
-}
-
-void JobsList::printJobsList() {
-	removeFinishedJobs();
-	std::sort(all_jobs.begin(), all_jobs.end());
-	for (JobEntry j : all_jobs)
-		j.printJobEntry();
-}
-
-
-void JobsList::removeFinishedJobs() { // assumption: stopped jobs cannot be finished
-	int status;
-	for (JobEntry j : all_jobs) {
-		pid_t return_pid = waitpid(j.pid, &status, WNOHANG);
-		if (return_pid == -1) {
-			std::cout << "error: something with waitpid" << std::endl;
-		} else if (return_pid == 0) {
-			/* child is still running */
-			continue;
-		} else if (return_pid == j.pid) {
-			/* child is finished. exit status in   status */
-			removeJobById(j.job_id);
-		}
-	}
-}
-
-void JobsList::removeJobById(int job_id) {
-	vector<JobEntry>::iterator it = all_jobs.begin();
-	int second_max_job_id = -1;
-	while(it != all_jobs.end()) {
-	    if((*it).getJobId() == job_id) {
-		it = all_jobs.erase(it);
-	    }
-	    else {
-		second_max_job_id = (*it).getJobId() > second_max_job_id ? (*it).getJobId() : second_max_job_id;
-		++it;
-	    }
-	}
-	max_jobid = second_max_job_id == -1 ? 0 : second_max_job_id;
-}
-
-pid_t JobsList::getPidByJobId(int job_id) {
-	vector<JobEntry>::iterator it = all_jobs.begin();
-	while(it != all_jobs.end()) {
-	    if((*it).getJobId() == job_id) {
-		return (*it).getPid();
-	    }
-	    else ++it;
-	}
-	return -1;
-
-}
-
-JobsList::JobEntry JobsList::getJobById(int job_id) {
-	for (JobEntry j : all_jobs) {
-		if (j.getJobId() == job_id) {
-			return j;
-		}
-	}
-	return JobEntry();
-
-}
-
-int JobsList::getMaxStoppedJobId() {
-	int max = -1;
-	for (JobEntry j : all_jobs) {
-		if (j.isStopped() & (j.getJobId() > max)) {
-			max = j.getJobId();
-		}
-	}
-	return max;
-}
-
-bool JobsList::bringToFg(int job_id, int* err) {
-	if (job_id == -1) {
-		if (max_jobid == 0) {
-			*err = JOBS_LIST_EMPTY;
-			return false;
-		}
-		job_id = max_jobid;
-	}
-	pid_t pid = getPidByJobId(job_id);
-	if (pid == -1) { // no job with job_pid in jobsList
-		*err = JOB_ID_NOT_EXIST;
-		return false;
-	}
-	JobEntry job = getJobById(job_id);
-	assert(job.getJobId() != -1); // job exists
-	std::cout << job.getCmdLine() << std::endl;
-	removeJobById(job_id);
-	int res = kill(pid, SIGCONT);
-	assert(res == 0);
-	int wstatus;
-	waitpid(pid, &wstatus, 0);
-	return true;
-}
-
-bool JobsList::resumeJobInBg(int job_id, int* err) {
-	if (job_id == -1) {
-		job_id = getMaxStoppedJobId();
-		if (job_id == -1) {
-			*err = NO_STOPPED_JOBS;
-			return false;
-		}
-	}
-	JobEntry job = getJobById(job_id);
-	if (job.getJobId() == -1) {
-		*err = JOB_ID_NOT_EXIST;
-		return false;
-	}
-	if (job.isStopped() == false) {
-		*err = JOB_ALREADY_RUNNING;
-		return false;
-	}
-	std::cout << job.getCmdLine() << std::endl;
-	int res = kill(job.getPid(), SIGCONT);
-	assert(res == 0);
-	job.removeStoppedFlag();
-	return true;
-}
-
-pid_t JobsList::sendFgProcToBg() {
-	if (fg_proc == -1)
-		return -1;
-	kill(fg_proc, SIGSTOP);
-	addJob(fg_proc_cmd_line, fg_proc, true);
-	return fg_proc;
-}
 
 void JobsCommand::execute() {
 	JobsList& jobs_list = JobsList::getInstance();
@@ -454,7 +293,7 @@ void ForegroundCommand::execute() {
 	if (invalid_args) {
 		std::cerr << "smash error: fg: invalid arguments" << std::endl;
 	}
-	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
+	int job_id = num_args == 2 ? std::stoi(args[1]) : UNSPECIFIED_JOB_ID;
 	int err;
 	bool success = JobsList::getInstance().bringToFg(job_id, &err);
 	if (!success) {
@@ -466,13 +305,27 @@ void ForegroundCommand::execute() {
 
 }
 
+BackgroundCommand::BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
+	invalid_args = false;
+	if (num_args > 2)
+		invalid_args = true;
+	if (num_args == 2) {
+		if (!is_number(args[1])) {
+			invalid_args = true;
+		}
+	}
+}
+
+
+
+
 void BackgroundCommand::execute() {
-	if (num_args > 2 || ((num_args == 2) & !is_number(args[1])) ) {
+	if (invalid_args) {
 		std::cerr << "smash error: bg: invalid arguments" << std::endl;
 	}
-	int job_id = num_args == 2 ? std::stoi(args[1]) : -1;
+	int job_id = num_args == 2 ? std::stoi(args[1]) : UNSPECIFIED_JOB_ID;
 	int err;
-	bool success = JobsList::getInstance().bringToFg(job_id, &err);
+	bool success = JobsList::getInstance().resumeJobInBg(job_id, &err);
 	if (!success) {
 		if (err == NO_STOPPED_JOBS)
 			std::cout << "smash error: bg: there is no stopped jobs to resume" << std::endl;

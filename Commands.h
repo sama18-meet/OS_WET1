@@ -1,11 +1,8 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
-#include <vector>
 #include <string.h>
 #include <iostream>
-#include <vector>
-#include<time.h>
 #include <sstream>
 #include <iomanip>
 #include <unistd.h>
@@ -20,12 +17,14 @@
 #include <memory>
 #include <bits/stdc++.h>
 
-#define COMMAND_ARGS_MAX_LENGTH (200)
-#define COMMAND_MAX_ARGS (20)
 
+#include "Defines.h"
 
+class JobsList;
+class SmallShell;
+
+/******** BASE CLASSES ********/
 class Command {
-// TODO: Add your data members
  protected:
   char* cmd_line;
   char* args[COMMAND_MAX_ARGS + 1];
@@ -42,10 +41,8 @@ class Command {
     while (it != s.end() && std::isdigit(*it)) ++it;
     return !s.empty() && it == s.end();
   }
-
   //virtual void prepare();
   //virtual void cleanup();
-  // TODO: Add your extra methods if needed
 };
 
 class BuiltInCommand : public Command {
@@ -53,10 +50,11 @@ class BuiltInCommand : public Command {
   BuiltInCommand(const char* cmd_line);
   virtual ~BuiltInCommand() = default;
 };
+
 class ExternalCommand : public Command {
 private:
-    bool Complex_Command= false;
-    bool Sleep_Command= false;
+    bool Complex_Command;
+    bool Sleep_Command;
     bool Is_back_ground;
  public:
   ExternalCommand(const char* cmd_line);
@@ -65,35 +63,14 @@ private:
     void setComplexCommand(bool complexCommand) {
         Complex_Command = complexCommand;
     }
-
     bool isComplexCommand() const {
         return Complex_Command;
     }
 
 };
 
-/*
-class PipeCommand : public Command {
-  // TODO: Add your data members
- public:
-  PipeCommand(const char* cmd_line);
-  virtual ~PipeCommand() {}
-  void execute() override;
-};
-
-class RedirectionCommand : public Command {
- // TODO: Add your data members
- public:
-  explicit RedirectionCommand(const char* cmd_line);
-  virtual ~RedirectionCommand() {}
-  void execute() override;
-  //void prepare() override;
-  //void cleanup() override;
-};
-*/
-
-class SmallShell;
-class ChangePromptCommand : public BuiltInCommand { // need to change this to inherit from Command instead of BuiltInCommand
+/******** BUILTIN COMMANDS CLASSES ********/
+class ChangePromptCommand : public BuiltInCommand {
  private:
   char* new_prompt;
  public:
@@ -125,70 +102,6 @@ class ChangeDirCommand : public BuiltInCommand {
   void execute() override;
 };
 
-
-
-
-class JobsList {
- public:
-  class JobEntry {
-      public:
-	int job_id;
-	std::string cmd_line;
-	pid_t pid;
-	time_t starttime;
-	bool is_stopped;
-      public:
-	JobEntry() : job_id(-1) {}; // invalid
-	JobEntry(JobEntry const&) = default;
-	JobEntry& operator=(JobEntry const&) = default;
-	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, bool is_stopped = false)
-		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), is_stopped(is_stopped) {}
-	~JobEntry() = default;
-	void printJobEntry();
-	bool operator<(const JobEntry& j) const { return job_id < j.job_id; }
-	//bool operator>(const JobEntry& j) const { return job_id > j.job_id; }
-	//bool operator==(const JobEntry& j) const { return job_id == j.job_id; }
-	int getJobId() { return job_id; }
-	int getPid() { return pid; }
-	bool isStopped() { return is_stopped; }
-	std::string getCmdLine() { return cmd_line; }
-	void removeStoppedFlag() { is_stopped = false; }
-
-
-  };
- public:
-  std::vector<JobEntry> all_jobs;
-  int max_jobid;
-  int max_stopped_job_id;
-  pid_t fg_proc;
-  std::string fg_proc_cmd_line;
- private:
-  JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0), fg_proc(-1), fg_proc_cmd_line("") {}
- public:
-  JobsList(const JobsList&) = delete;
-  void operator=(const JobsList&) = delete;
-  ~JobsList() = default;
-  static JobsList& getInstance() {
-	static JobsList instance;
-	return instance;
-  }
-  void addJob(std::string cmd_line, int pid, bool is_stopped = false);
-  void printJobsList();
-  //void killAllJobs();
-  void removeFinishedJobs();
-  pid_t getPidByJobId(int jobId);
-  JobEntry getJobById(int jobId);
-  void removeJobById(int jobId);
-  //JobEntry& getLastJob(int* lastJobId);
-  //JobEntry& getLastStoppedJob(int *jobId);
-  bool bringToFg(int job_id, int* err);
-  bool resumeJobInBg(int job_id, int* err);
-  pid_t sendFgProcToBg();
-  int getMaxStoppedJobId();
-  void rmFgProc() { fg_proc = -1; fg_proc_cmd_line = ""; };
-  void setFgProcId(pid_t pid, std::string cmd_line) { fg_proc = pid; fg_proc_cmd_line = cmd_line; };
-};
-
 class JobsCommand : public BuiltInCommand {
  public:
   JobsCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
@@ -206,15 +119,16 @@ class ForegroundCommand : public BuiltInCommand {
 };
 
 class BackgroundCommand : public BuiltInCommand {
+ private:
+  bool invalid_args;
  public:
-  BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+  BackgroundCommand(const char* cmd_line);
   virtual ~BackgroundCommand() {}
   void execute() override;
 };
 
 
 /*
-class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members
 public:
@@ -223,6 +137,35 @@ public:
   void execute() override;
 };
 
+class KillCommand : public BuiltInCommand {
+ // TODO: Add your data members
+ public:
+  KillCommand(const char* cmd_line, JobsList* jobs);
+  virtual ~KillCommand() {}
+  void execute() override;
+};
+*/
+
+
+/******** SPECIAL COMMANDS CLASSES ********/
+/*
+class PipeCommand : public Command {
+  // TODO: Add your data members
+ public:
+  PipeCommand(const char* cmd_line);
+  virtual ~PipeCommand() {}
+  void execute() override;
+};
+
+class RedirectionCommand : public Command {
+ // TODO: Add your data members
+ public:
+  explicit RedirectionCommand(const char* cmd_line);
+  virtual ~RedirectionCommand() {}
+  void execute() override;
+  //void prepare() override;
+  //void cleanup() override;
+};
 
 
 class TimeoutCommand : public BuiltInCommand {
@@ -248,14 +191,6 @@ class SetcoreCommand : public BuiltInCommand {
   virtual ~SetcoreCommand() {}
   void execute() override;
 };
-
-class KillCommand : public BuiltInCommand {
- // TODO: Add your data members
- public:
-  KillCommand(const char* cmd_line, JobsList* jobs);
-  virtual ~KillCommand() {}
-  void execute() override;
-};
 */
 
 class SmallShell { // singelton
@@ -276,19 +211,20 @@ class SmallShell { // singelton
   }
   Command *CreateCommand(const char* cmd_line);
   void executeCommand(const char* cmd_line);
-  // prompt
+  /**** prompt ****/
   std::string getPrompt();
   void setPrompt(std::string new_prompt);
   void resetPrompt();
-  // pid
+  /**** pid ****/
   pid_t getPid() { return pid; };
-  // cwd
+  /**** cwd ****/
   std::string getCwd();
   void setCwd(std::string new_path);
   std::string getOldPwd() { return old_pwd; }
-  // error handling
+  /**** error handling ****/
   void syscallErrorHandler(std::string syscall_name);
   
 };
+
 
 #endif //SMASH_COMMAND_H_

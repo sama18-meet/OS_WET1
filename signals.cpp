@@ -2,12 +2,13 @@
 #include <signal.h>
 #include "signals.h"
 #include "Commands.h"
+#include "JobsList.h"
 
 using namespace std;
 
 void ctrlZHandler(int sig_num) {
 	std::cout << "smash: got ctrl-Z" << std::endl;
-	pid_t fg_pid = JobsList::getInstance().sendFgProcToBg();
+	pid_t fg_pid = JobsList::getInstance().stopFgProc();
 	if (fg_pid == -1) return;
 	std::cout << "smash: process " << fg_pid << " was stopped" << std::endl;
 }
