@@ -163,7 +163,6 @@ bool JobsList::bringToFg(int job_id, int* err) {
 }
 
 bool JobsList::resumeJobInBg(int job_id, int* err) {
-	std::cout << "SAMA: IN resumeJobInBg" << std::endl;
 	if (job_id == UNSPECIFIED_JOB_ID) {
 		job_id = getMaxStoppedJobId();
 		if (job_id == INVALID_JOB_ID) {
@@ -183,11 +182,8 @@ bool JobsList::resumeJobInBg(int job_id, int* err) {
 	std::cout << job->getCmdLine() << std::endl;
 	int res = kill(job->getPid(), SIGCONT);
 	assert(res == 0);
-	std::cout << "SAMA: will reset starttime" << std::endl;
 	job->resetStarttime();
 	job->removeStoppedFlag();
-	if (job->isStopped()) std::cout << "STILL STOPPED! WTF!" << std::endl;
-	else std::cout << "not stopped whew" << std::endl;
 	return true;
 }
 

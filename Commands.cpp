@@ -406,6 +406,16 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("setcore") == 0 || firstWord.compare("setcore&") == 0 ) {
       return new SetcoreCommand(cmd_line);
   }
+  else if (firstWord.compare("jobs") == 0) {
+    return new JobsCommand(cmd_line);
+  }
+  else if (firstWord.compare("fg") == 0) {
+    return new ForegroundCommand(cmd_line);
+  }
+  else if (firstWord.compare("bg") == 0) {
+    return new BackgroundCommand(cmd_line);
+  }
+
 
   else if (firstWord.compare("quit") == 0 || firstWord.compare("quit&") == 0 ) {
       return new QuitCommand(cmd_line);
