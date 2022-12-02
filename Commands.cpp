@@ -231,7 +231,7 @@ void ExternalCommand::execute() {
         } else // using exec v
         {
             setpgrp();
-            std::stringstream ss(this->cmd_line);
+            std::stringstream ss(string(this->cmd_line));
             string buff;
             string args;
             string path;
@@ -714,20 +714,21 @@ SetcoreCommand::SetcoreCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 
     std::stringstream ss(cmd_line);
     std::string buffer;
-    stringstream buffer2;
 
     int i=0;
     while (ss >> buffer)
     {
         if(i==1)
         {
-            buffer2 << buffer;
-            buffer2 >> this->job_num;
+             this->job_num=stoi(buffer);;
+            i++;
         }
         else if (i==2)
         {
-            buffer2 << buffer;
-            buffer2 >> this->core_num;
+            int a;
+
+            this->core_num=stoi(buffer);
+            i++;
         }
         else {
             i++;
@@ -736,7 +737,7 @@ SetcoreCommand::SetcoreCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 }
 
 void SetcoreCommand::execute() {
-    if (this->num_args>2)
+    if (this->num_args>3)
     {
         perror("smash error: fare: invalid arguments");
         return;
@@ -745,19 +746,26 @@ void SetcoreCommand::execute() {
     cpu_set_t my_set;        /* Define my cpu_set bit mask. */
     CPU_ZERO(&my_set);  // set all to zero
     CPU_SET(this->core_num,&my_set);
+
     pid_t pid =  JobsList::getInstance().getPidByJobId(this->job_num);
     if (pid<0)
     {
         std::cerr <<"smash error: setcore: job-id "<< this->job_num <<" does not exist" << std::endl;
+        return;
     }
    if (sched_setaffinity(pid, sizeof(cpu_set_t), &my_set) == -1)
    {
        if (errno ==EINVAL || errno == EPERM   )
        {
            perror("smash error: fare: invalid core number");
+           return;
+
        }
-       else
+       else {
            perror("smash error: fare: invalid arguments");
+           return;
+
+       }
    }
 
 }
