@@ -213,6 +213,17 @@ pid_t JobsList::stopFgProc() {
 	return proc_id;
 }
 
+pid_t JobsList::killFgProc() {
+	if (fg_job == JobEntry())
+		return NO_FG_JOB;
+	pid_t proc_id = fg_job.getPid();
+	if (kill(proc_id, SIGKILL) == -1) {
+		SmallShell::getInstance().syscallErrorHandler("kill");
+		return -1;
+	}
+	return proc_id;
+}
+
 void JobsList::setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time) {
 	time_t starttime;
 	time(&starttime);

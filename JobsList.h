@@ -86,6 +86,7 @@ class JobsList {
   bool bringToFg(int job_id, int* err);
   bool resumeJobInBg(int job_id, int* err);
   pid_t stopFgProc();
+  pid_t killFgProc();
   void setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time);
   void rmFgProc() { fg_job = JobEntry(); };
   void killAllJobs();

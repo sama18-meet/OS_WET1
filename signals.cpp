@@ -14,7 +14,10 @@ void ctrlZHandler(int sig_num) {
 }
 
 void ctrlCHandler(int sig_num) {
-  // TODO: Add your implementation
+	std::cout << "smash: got ctrl-C" << std::endl;
+	pid_t fg_pid = JobsList::getInstance().killFgProc();
+	if (fg_pid == -1) return;
+	std::cout << "smash: process " << fg_pid << " was killed" << std::endl;
 }
 
 void alarmHandler(int sig_num) {
