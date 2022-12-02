@@ -192,9 +192,14 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 	{
 		this->Is_back_ground= true;
 	}
-	this->cmd_line = new char[string(cmd_line).length() + 1];
-	strcpy(this->cmd_line, cmd_line);
-	std::stringstream ss(cmd_line);
+    string temp_line = cmd_line;
+    if (!this->Is_back_ground)
+    {
+        temp_line = _trim(cmd_line);
+    }
+	this->cmd_line = new char[string(temp_line).length() + 1];
+	strcpy(this->cmd_line, temp_line.c_str());
+	std::stringstream ss(temp_line);
 	string buf;
 	while (ss >> buf) {
         if (ContainsWildcards(buf)) {
@@ -204,6 +209,7 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 }
 
 void ExternalCommand::execute() {
+    std::string jobline(this->cmd_line);
     _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
     pid_t pid = fork();
     if (pid < 0) //that is for error
@@ -270,7 +276,7 @@ if (!this->Is_back_ground) ///father should wait
         }
         else
         {
-		JobsList::getInstance().addJob(this->cmd_line, pid, 0, false);
+		JobsList::getInstance().addJob(jobline, pid, 0, false);
 		return;
         }
     }
@@ -357,7 +363,7 @@ SmallShell::SmallShell() {
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
 
-  string cmd_s = _trim(string(cmd_line));
+  string cmd_s = _rtrim(string(cmd_line));
 
     if (cmd_s=="")
     {
