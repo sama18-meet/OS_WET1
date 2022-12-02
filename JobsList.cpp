@@ -40,6 +40,15 @@ void JobsList::JobEntry::killJob() {
 		std::cout << pid << ": " << cmd_line << std::endl;
 	}
 }
+
+void JobsList::JobEntry::continueJob() {
+	resetStarttime();
+	if (kill(pid, SIGCONT) == -1) {
+		SmallShell::getInstance().syscallErrorHandler("kill");
+	}
+}
+
+
 ///////////////////////////////////////////////////////////
 ////// JOBS LIST
 ///////////////////////////////////////////////////////////
@@ -47,12 +56,12 @@ void JobsList::JobEntry::killJob() {
 
 /**** jobs list functions ****/
 
-void JobsList::addJob(std::string cmd_line, int pid, time_t past_running_time, bool is_stopped) {
+void JobsList::addJob(std::string cmd_line, int pid, bool is_stopped, bool is_fg) {
 	removeFinishedJobs();
 	int job_id = max_jobid + 1;
 	time_t starttime;
 	time(&starttime); 
-	JobEntry j(job_id, cmd_line, pid, starttime, past_running_time, is_stopped);
+	JobEntry j(job_id, cmd_line, pid, starttime, 0, is_stopped, is_fg);
 	all_jobs.push_back(j);
 	max_jobid++;
 }
@@ -88,7 +97,7 @@ void JobsList::removeFinishedJobs() { // assumption: stopped jobs cannot be fini
 }
 
 int JobsList::getNumJobs() {
-	return all_jobs.size();
+	return all_jobs.size() - 1;
 }
 
 pid_t JobsList::getPidByJobId(int job_id) {
@@ -113,6 +122,18 @@ JobsList::JobEntry* JobsList::getJobById(int job_id) {
 	return nullptr;
 }
 
+JobsList::JobEntry* JobsList::getFgJob() {
+	std::vector<JobEntry>::iterator it = all_jobs.begin();
+	while(it != all_jobs.end()) {
+	    if((*it).isFg()) {
+		return &(*it);
+	    }
+	    else {
+		++it;
+	    }
+	}
+	return nullptr;
+}
 
 int JobsList::getMaxStoppedJobId() {
 	int max = INVALID_JOB_ID;
@@ -133,8 +154,6 @@ void JobsList::printJobsList() {
 
 
 /**** fg & bg manipulations ****/
-
-
 bool JobsList::bringToFg(int job_id, int* err) {
 	if (job_id == UNSPECIFIED_JOB_ID) {
 		if (max_jobid == 0) {
@@ -148,30 +167,18 @@ bool JobsList::bringToFg(int job_id, int* err) {
 		*err = JOB_ID_NOT_EXIST;
 		return false;
 	}
-	JobEntry* job = getJobById(job_id);
-	assert(job != nullptr); // job exists
+	JobEntry* job = getJobById(job_id);  assert(job != nullptr); // job exists
+	job->setFg(true);
 	std::cout << job->getCmdLine() << std::endl;
-	if (kill(pid, SIGCONT) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
-	}
-	time_t fg_job_past_running_time ;
 	if (job->isStopped()) {
-		job->resetStarttime();
-		fg_job_past_running_time = job->getPastRunningTime();
+		job->continueJob();
 	}
-	else {
-		time_t now;
-		time(&now);
-		fg_job_past_running_time = job->getPastRunningTime() + difftime(now, fg_job.getStarttime());
-	}
-	JobsList::getInstance().setFgProc(pid, job->getCmdLine(), fg_job_past_running_time);
-	removeJobById(job_id);
 	if (waitpid(pid, nullptr, WUNTRACED) == -1) {
 		SmallShell::getInstance().syscallErrorHandler("waitpid");
 		*err = FAILED_SYSCALL;
 		return false;
 	}
-	JobsList::getInstance().rmFgProc();
+	removeFinishedJobs();
 	return true;
 }
 
@@ -193,41 +200,39 @@ bool JobsList::resumeJobInBg(int job_id, int* err) {
 		return false;
 	}
 	std::cout << job->getCmdLine() << std::endl;
-	int res = kill(job->getPid(), SIGCONT);
-	assert(res == 0);
-	job->resetStarttime();
-	job->removeStoppedFlag();
+	job->continueJob();
+	job->setStopped(true);
 	return true;
 }
 
 pid_t JobsList::stopFgProc() {
-	if (fg_job == JobEntry())
+	JobEntry* fg_job = getFgJob();
+	if (fg_job == nullptr)
 		return NO_FG_JOB;
-	pid_t proc_id = fg_job.getPid();
+	pid_t pid = fg_job->getPid();
 	time_t now;
 	time(&now);
-	time_t last_running_period_time = difftime(now, fg_job.getStarttime());
-	time_t fg_job_total_runtime = fg_job.getPastRunningTime() + last_running_period_time;
-	kill(proc_id, SIGSTOP);
-	addJob(fg_job.getCmdLine(), proc_id, fg_job_total_runtime, true);
-	return proc_id;
-}
-
-pid_t JobsList::killFgProc() {
-	if (fg_job == JobEntry())
-		return NO_FG_JOB;
-	pid_t proc_id = fg_job.getPid();
-	if (kill(proc_id, SIGKILL) == -1) {
+	fg_job->addToPastRunningTime(difftime(now, fg_job->getStarttime()));
+	if (kill(pid, SIGSTOP) == -1) {
 		SmallShell::getInstance().syscallErrorHandler("kill");
 		return -1;
 	}
-	return proc_id;
+	fg_job->setFg(false);
+	fg_job->setStopped(true);
+	return pid;
 }
 
-void JobsList::setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time) {
-	time_t starttime;
-	time(&starttime);
-	fg_job = JobEntry(FG_JOB_ID, cmd_line, pid, starttime , past_running_time, false);
+pid_t JobsList::killFgProc() {
+	JobEntry* fg_job = getFgJob();
+	if (fg_job == nullptr)
+		return NO_FG_JOB;
+	pid_t pid = fg_job->getPid();
+	if (kill(pid, SIGKILL) == -1) {
+		SmallShell::getInstance().syscallErrorHandler("kill");
+		return -1;
+	}
+	removeJobById(fg_job->getJobId());
+	return pid;
 }
 
 

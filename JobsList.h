@@ -32,16 +32,18 @@ class JobsList {
 	time_t starttime;
 	time_t past_running_time;
 	bool is_stopped;
+	bool is_fg;
       public:
 	JobEntry() : job_id(INVALID_JOB_ID) {}; // invalid
 	JobEntry(JobEntry const&) = default;
 	JobEntry& operator=(JobEntry const&) = default;
-	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, time_t past_running_time = 0, bool is_stopped = false)
-		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), past_running_time(past_running_time), is_stopped(is_stopped) {}
+	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, time_t past_running_time, bool is_stopped, bool is_fg)
+		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), past_running_time(past_running_time), is_stopped(is_stopped), is_fg(is_fg) {}
 	~JobEntry() = default;
 	/**** print & kill methods ****/
 	void printJobEntry();
 	void killJob();
+	void continueJob();
 	/**** operator overloading ****/
 	bool operator<(const JobEntry& j) const { return job_id < j.job_id; }
 	bool operator>(const JobEntry& j) const { return job_id > j.job_id; }
@@ -53,18 +55,19 @@ class JobsList {
 	time_t getStarttime() { return starttime; }
 	time_t getPastRunningTime() { return past_running_time; }
 	bool isStopped() { return is_stopped; }
+	bool isFg() { return is_fg; }
 	/**** set methods ****/
-	void removeStoppedFlag() { is_stopped = false; }
-	void setPastRunningTime(time_t time) { past_running_time = time; }
+	void setFg(bool fg) { is_fg = fg; }
+	void setStopped(bool stp) { is_stopped = stp; }
 	void resetStarttime() { time(&starttime); }
+	void addToPastRunningTime(int time) { past_running_time += time; }
   };
  public:
   std::vector<JobEntry> all_jobs;
   int max_jobid;
   int max_stopped_job_id;
-  JobEntry fg_job;
  private:
-  JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0), fg_job(JobEntry()) {}
+  JobsList() : all_jobs(std::vector<JobEntry>()), max_jobid(0), max_stopped_job_id(0) {}
  public:
   JobsList(const JobsList&) = delete;
   void operator=(const JobsList&) = delete;
@@ -74,21 +77,22 @@ class JobsList {
 	return instance;
   }
   /**** jobs list functions ****/
-  void addJob(std::string cmd_line, int pid, time_t past_running_time, bool is_stopped = false);
+  void addJob(std::string cmd_line, int pid, bool is_stopped, bool is_fg);
   void removeJobById(int jobId);
   void removeFinishedJobs();
   int getNumJobs();
   pid_t getPidByJobId(int jobId);
   JobEntry* getJobById(int jobId);
+  JobEntry* getFgJob();
   int getMaxStoppedJobId();
   void printJobsList();
   /**** fg & bg manipulations ****/
   bool bringToFg(int job_id, int* err);
   bool resumeJobInBg(int job_id, int* err);
+
   pid_t stopFgProc();
   pid_t killFgProc();
-  void setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time);
-  void rmFgProc() { fg_job = JobEntry(); };
+
   void killAllJobs();
   bool sendSignal(int signum, int job_id);
 };

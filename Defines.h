@@ -17,4 +17,10 @@
 #define JOB_ALREADY_RUNNING 4
 #define FAILED_SYSCALL 5
 
+
+#define STOPPED 1
+#define CONTINUED 2
+#define MOVED 3
+
+
 #endif // DEFINES_H_
