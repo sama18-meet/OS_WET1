@@ -231,34 +231,9 @@ void ExternalCommand::execute() {
         } else // using exec v
         {
             setpgrp();
-            std::stringstream ss(string(this->cmd_line));
-            string buff;
-            string args;
-            string path;
-
-            ss >> path;
-
-            while (ss >> buff) {
-                args += buff;
-                args += " ";
-            }
-            if (args.size()>1)
-            {
-                args.pop_back();
-            }
-            const char *filepath = path.c_str();
-            if (args == "") {
-                const char *path_args[] = {path.c_str(), nullptr, nullptr};
-                if (execvp(filepath, (char **) path_args) == -1) {
-                    perror("smash error: execvp failed");
-                    return;
-                }
-            } else {
-                const char *path_args[] = {path.c_str(), args.c_str(), nullptr};
-                if (execvp(filepath, (char **) path_args) == -1) {
-                    perror("smash error: execvp failed");
-                    return;
-                }
+            if (execvp(this->args[0], this->args) == -1) {
+                perror("smash error: execvp failed");
+                return;
             }
         }
     }
@@ -722,7 +697,7 @@ void Appened::execute() {
 
     ///////////
     int path_redirect = open(path.c_str(),O_WRONLY | O_CREAT | O_APPEND , 0655);
-
+    
     if(path_redirect < 0){
         perror("smash error: open failed");
         return;
@@ -747,7 +722,7 @@ void Appened::execute() {
         }
         wait(NULL);
     }
-
+    
 }
 
 SetcoreCommand::SetcoreCommand(const char *cmd_line) : BuiltInCommand(cmd_line) {
