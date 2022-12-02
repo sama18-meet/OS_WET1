@@ -224,3 +224,19 @@ void JobsList::killAllJobs() {
 		j.killJob();
 	}
 }
+
+
+
+bool JobsList::sendSignal(int signum, int job_id) {
+	pid_t pid = getPidByJobId(job_id);
+	if (pid == INVALID_JOB_ID) {
+		return false;
+	}
+	if (kill(pid, signum) == -1) {
+		SmallShell::getInstance().syscallErrorHandler("kill");
+	}
+	else {
+		std::cout << "signal number " << signum << " was sent to pid " << pid << std::endl;
+	}
+	return true;
+}

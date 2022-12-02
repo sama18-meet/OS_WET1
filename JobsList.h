@@ -89,6 +89,7 @@ class JobsList {
   void setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time);
   void rmFgProc() { fg_job = JobEntry(); };
   void killAllJobs();
+  bool sendSignal(int signum, int job_id);
 };
 
 

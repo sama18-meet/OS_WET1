@@ -418,6 +418,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("quit") == 0 || firstWord.compare("quit&") == 0 ) {
       return new QuitCommand(cmd_line);
   }
+  else if (firstWord.compare("kill") == 0 || firstWord.compare("kill&") == 0 ) {
+      return new KillCommand(cmd_line);
+  }
 
   else {
     return new ExternalCommand(cmd_s.c_str());
@@ -763,8 +766,24 @@ void QuitCommand::execute() {
 	exit(0);
     }
     else {
-	std::cout << "sending SIGKILL signal to " << JobsList::getInstance().getNumJobs() << " jobs:" << std::endl;
+	std::cout << "smash: sending SIGKILL signal to " << JobsList::getInstance().getNumJobs() << " jobs:" << std::endl;
 	JobsList::getInstance().killAllJobs();
 	exit(0);
     }
+}
+
+void KillCommand::execute() {
+	if (num_args != 3) {
+		std::cout << "smash error: kill: invalid arguments" << std::endl;
+		return;
+	}
+	if ((args[1][0] != '-') || !is_number(args[1]+1) || !is_number(args[2])) {
+		std::cout << "smash error: kill: invalid arguments" << std::endl;
+		return;
+	}
+	bool found_job_id = JobsList::getInstance().sendSignal(std::stoi(args[1]+1), std::stoi(args[2]));
+	if (!found_job_id) {
+		std::cout << "smash error: kill: job-id " << args[2] << " does not exsist" << std::endl;
+	}
+	return;
 }

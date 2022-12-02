@@ -197,6 +197,13 @@ public:
     void execute() override;
 };
 
+class KillCommand : public BuiltInCommand {
+public:
+    KillCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {};
+    virtual ~KillCommand() {}
+    void execute() override;
+};
+
 
 class TimeoutCommand : public BuiltInCommand {
 // TODO: Add your data members
@@ -211,16 +218,6 @@ class FareCommand : public BuiltInCommand {
 public:
     FareCommand(const char* cmd_line);
     virtual ~FareCommand() {}
-    void execute() override;
-};
-
-
-
-class KillCommand : public BuiltInCommand {
-    // TODO: Add your data members
-public:
-    KillCommand(const char* cmd_line, JobsList* jobs);
-    virtual ~KillCommand() {}
     void execute() override;
 };
 
