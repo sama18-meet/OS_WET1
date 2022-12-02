@@ -279,9 +279,7 @@ if (!this->Is_back_ground) ///father should wait
 
 
 void JobsCommand::execute() {
-	JobsList& jobs_list = JobsList::getInstance();
-	jobs_list.removeFinishedJobs();
-	jobs_list.printJobsList();
+	JobsList::getInstance().printJobsList();
 }
 
 ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
@@ -433,6 +431,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
   if (cmd == nullptr) {
 	return;
   }
+  JobsList::getInstance().removeFinishedJobs();
   cmd->execute();
   // Please note that you must fork smash process for some commands (e.g., external commands....)
 }

@@ -48,6 +48,7 @@ void JobsList::JobEntry::killJob() {
 /**** jobs list functions ****/
 
 void JobsList::addJob(std::string cmd_line, int pid, time_t past_running_time, bool is_stopped) {
+	removeFinishedJobs();
 	int job_id = max_jobid + 1;
 	time_t starttime;
 	time(&starttime); 
