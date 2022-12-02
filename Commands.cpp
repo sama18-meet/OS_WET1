@@ -211,6 +211,11 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 void ExternalCommand::execute() {
     std::string jobline(this->cmd_line);
     _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
+	
+    this->cmd_line = (char*)cmd_line;
+    this->num_args = _parseCommandLine(cmd_line, this->args);
+	
+	
     pid_t pid = fork();
     if (pid < 0) //that is for error
     {
