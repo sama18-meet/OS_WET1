@@ -32,6 +32,14 @@ void JobsList::JobEntry::printJobEntry() {
 	}
 }
 
+void JobsList::JobEntry::killJob() {
+	if (kill(pid, SIGKILL) == -1) {
+		SmallShell::getInstance().syscallErrorHandler("kill");
+	}
+	else {
+		std::cout << pid << ": " << cmd_line << std::endl;
+	}
+}
 ///////////////////////////////////////////////////////////
 ////// JOBS LIST
 ///////////////////////////////////////////////////////////
@@ -76,6 +84,10 @@ void JobsList::removeFinishedJobs() { // assumption: stopped jobs cannot be fini
 			removeJobById(j.job_id);
 		}
 	}
+}
+
+int JobsList::getNumJobs() {
+	return all_jobs.size();
 }
 
 pid_t JobsList::getPidByJobId(int job_id) {
@@ -207,3 +219,8 @@ void JobsList::setFgProc(pid_t pid, std::string cmd_line, time_t past_running_ti
 }
 
 
+void JobsList::killAllJobs() {
+	for (JobEntry j : all_jobs) {
+		j.killJob();
+	}
+}

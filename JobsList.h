@@ -39,8 +39,9 @@ class JobsList {
 	JobEntry(int job_id, std::string cmd_line, int pid, int starttime, time_t past_running_time = 0, bool is_stopped = false)
 		: job_id(job_id), cmd_line(cmd_line), pid(pid), starttime(starttime), past_running_time(past_running_time), is_stopped(is_stopped) {}
 	~JobEntry() = default;
-	/**** print methods ****/
+	/**** print & kill methods ****/
 	void printJobEntry();
+	void killJob();
 	/**** operator overloading ****/
 	bool operator<(const JobEntry& j) const { return job_id < j.job_id; }
 	bool operator>(const JobEntry& j) const { return job_id > j.job_id; }
@@ -76,6 +77,7 @@ class JobsList {
   void addJob(std::string cmd_line, int pid, time_t past_running_time, bool is_stopped = false);
   void removeJobById(int jobId);
   void removeFinishedJobs();
+  int getNumJobs();
   pid_t getPidByJobId(int jobId);
   JobEntry* getJobById(int jobId);
   int getMaxStoppedJobId();
@@ -86,7 +88,7 @@ class JobsList {
   pid_t stopFgProc();
   void setFgProc(pid_t pid, std::string cmd_line, time_t past_running_time);
   void rmFgProc() { fg_job = JobEntry(); };
-  //void killAllJobs();
+  void killAllJobs();
 };
 
 

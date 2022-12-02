@@ -415,8 +415,6 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
   else if (firstWord.compare("bg") == 0) {
     return new BackgroundCommand(cmd_line);
   }
-
-
   else if (firstWord.compare("quit") == 0 || firstWord.compare("quit&") == 0 ) {
       return new QuitCommand(cmd_line);
   }
@@ -758,8 +756,15 @@ void SetcoreCommand::execute() {
 
 
 void QuitCommand::execute() {
-    if (this->num_args==1)
-    {
+    if (this->num_args==1) {
         exit(0);
+    }
+    else if (string(this->args[1]) != "kill") {
+	exit(0);
+    }
+    else {
+	std::cout << "sending SIGKILL signal to " << JobsList::getInstance().getNumJobs() << " jobs:" << std::endl;
+	JobsList::getInstance().killAllJobs();
+	exit(0);
     }
 }

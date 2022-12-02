@@ -190,9 +190,7 @@ public:
 };
 
 
-
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members
 public:
     QuitCommand(const char* cmd_line): BuiltInCommand(cmd_line) {};
     virtual ~QuitCommand() {}
