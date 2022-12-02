@@ -773,16 +773,16 @@ void QuitCommand::execute() {
 
 void KillCommand::execute() {
 	if (num_args != 3) {
-		std::cout << "smash error: kill: invalid arguments" << std::endl;
+		std::cerr << "smash error: kill: invalid arguments" << std::endl;
 		return;
 	}
 	if ((args[1][0] != '-') || !is_number(args[1]+1) || !is_number(args[2])) {
-		std::cout << "smash error: kill: invalid arguments" << std::endl;
+		std::cerr << "smash error: kill: invalid arguments" << std::endl;
 		return;
 	}
 	bool found_job_id = JobsList::getInstance().sendSignal(std::stoi(args[1]+1), std::stoi(args[2]));
 	if (!found_job_id) {
-		std::cout << "smash error: kill: job-id " << args[2] << " does not exsist" << std::endl;
+		std::cerr << "smash error: kill: job-id " << args[2] << " does not exsist" << std::endl;
 	}
 	return;
 }
