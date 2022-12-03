@@ -43,6 +43,7 @@ void JobsList::JobEntry::killJob() {
 
 void JobsList::JobEntry::continueJob() {
 	resetStarttime();
+	setStopped(false);
 	if (kill(pid, SIGCONT) == -1) {
 		SmallShell::getInstance().syscallErrorHandler("kill");
 	}
@@ -97,7 +98,7 @@ void JobsList::removeFinishedJobs() { // assumption: stopped jobs cannot be fini
 }
 
 int JobsList::getNumJobs() {
-	return all_jobs.size() - 1;
+	return all_jobs.size();
 }
 
 pid_t JobsList::getPidByJobId(int job_id) {
@@ -162,6 +163,12 @@ bool JobsList::bringToFg(int job_id, int* err) {
 		}
 		job_id = max_jobid;
 	}
+		std::cerr << "fg: inside " << std::endl;
+		std::cerr << "asking for job-id " << job_id << std::endl;
+		std::cerr << "jobs list: " << std::endl;
+		for (JobEntry j : all_jobs)
+			std::cerr << j.getJobId() << std::endl;
+
 	pid_t pid = getPidByJobId(job_id);
 	if (pid == INVALID_JOB_ID) { // no job with job_pid in jobsList
 		*err = JOB_ID_NOT_EXIST;
@@ -169,7 +176,7 @@ bool JobsList::bringToFg(int job_id, int* err) {
 	}
 	JobEntry* job = getJobById(job_id);  assert(job != nullptr); // job exists
 	job->setFg(true);
-	std::cout << job->getCmdLine() << std::endl;
+	std::cout << job->getCmdLine() << " : " << job->getPid() << std::endl;
 	if (job->isStopped()) {
 		job->continueJob();
 	}
@@ -199,9 +206,8 @@ bool JobsList::resumeJobInBg(int job_id, int* err) {
 		*err = JOB_ALREADY_RUNNING;
 		return false;
 	}
-	std::cout << job->getCmdLine() << std::endl;
+	std::cout << job->getCmdLine() << " : " << job->getPid() << std::endl;
 	job->continueJob();
-	job->setStopped(true);
 	return true;
 }
 

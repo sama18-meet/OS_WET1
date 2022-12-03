@@ -211,11 +211,8 @@ ExternalCommand::ExternalCommand(const char *cmd_line) : Command(cmd_line) {
 void ExternalCommand::execute() {
     std::string jobline(this->cmd_line);
     _removeBackgroundSign(this->cmd_line); ///check if command line is corrupted
-	
     this->cmd_line = (char*)cmd_line;
     this->num_args = _parseCommandLine(cmd_line, this->args);
-	
-	
     pid_t pid = fork();
     if (pid < 0) //that is for error
     {
@@ -281,6 +278,7 @@ void ForegroundCommand::execute() {
 	int job_id = num_args == 2 ? std::stoi(args[1]) : UNSPECIFIED_JOB_ID;
 	int err;
 	bool success = JobsList::getInstance().bringToFg(job_id, &err);
+	std::cerr << "fg: outside " << std::endl;
 	if (!success) {
 		if (err == JOBS_LIST_EMPTY)
 			std::cerr << "smash error: fg: jobs list is empty" << std::endl;
@@ -812,7 +810,7 @@ void KillCommand::execute() {
 	}
 	bool found_job_id = JobsList::getInstance().sendSignal(std::stoi(args[1]+1), std::stoi(args[2]));
 	if (!found_job_id) {
-		std::cerr << "smash error: kill: job-id " << args[2] << " does not exsist" << std::endl;
+		std::cerr << "smash error: kill: job-id " << args[2] << " does not exist" << std::endl;
 	}
 	return;
 }
