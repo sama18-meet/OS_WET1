@@ -34,7 +34,7 @@ void JobsList::JobEntry::printJobEntry() {
 
 void JobsList::JobEntry::killJob() {
 	if (kill(pid, SIGKILL) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
+		SmallShell::getInstance().syscallErrorHandler("kill1");
 	}
 	else {
 		std::cout << pid << ": " << cmd_line << std::endl;
@@ -45,7 +45,7 @@ void JobsList::JobEntry::continueJob() {
 	resetStarttime();
 	setStopped(false);
 	if (kill(pid, SIGCONT) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
+		SmallShell::getInstance().syscallErrorHandler("kill2");
 	}
 }
 
@@ -216,7 +216,7 @@ pid_t JobsList::stopFgProc() {
 	time(&now);
 	fg_job->addToPastRunningTime(difftime(now, fg_job->getStarttime()));
 	if (kill(pid, SIGSTOP) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
+		SmallShell::getInstance().syscallErrorHandler("kill3");
 		return -1;
 	}
 	fg_job->setFg(false);
@@ -227,12 +227,11 @@ pid_t JobsList::stopFgProc() {
 pid_t JobsList::killFgProc() {
 	removeFinishedJobs();
 	JobEntry* fg_job = getFgJob();
-	//std::cout << "fg job is " << fg_job->getJobId() << std::endl;
 	if (fg_job == nullptr)
 		return NO_FG_JOB;
 	pid_t pid = fg_job->getPid();
 	if (kill(pid, SIGKILL) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
+		SmallShell::getInstance().syscallErrorHandler("kill4");
 		return -1;
 	}
 	removeJobById(fg_job->getJobId());
@@ -254,7 +253,7 @@ bool JobsList::sendSignal(int signum, int job_id) {
 		return false;
 	}
 	if (kill(pid, signum) == -1) {
-		SmallShell::getInstance().syscallErrorHandler("kill");
+		SmallShell::getInstance().syscallErrorHandler("kill5");
 	}
 	else {
 		std::cout << "signal number " << signum << " was sent to pid " << pid << std::endl;
