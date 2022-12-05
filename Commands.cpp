@@ -257,6 +257,7 @@ void ExternalCommand::execute() {
 
 
 void JobsCommand::execute() {
+	JobsList::getInstance().removeFinishedJobs();
 	JobsList::getInstance().printJobsList();
 }
 
@@ -276,6 +277,7 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_
 }
 
 void ForegroundCommand::execute() {
+	JobsList::getInstance().removeFinishedJobs();
 	if (invalid_args) {
 		std::cerr << "smash error: fg: invalid arguments" << std::endl;
 		return;
@@ -317,6 +319,7 @@ BackgroundCommand::BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_
 
 
 void BackgroundCommand::execute() {
+	JobsList::getInstance().removeFinishedJobs();
 	if (invalid_args) {
 		std::cerr << "smash error: bg: invalid arguments" << std::endl;
 		return;
@@ -425,13 +428,12 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
+  JobsList::getInstance().removeFinishedJobs();
   Command* cmd = CreateCommand(cmd_line);
   if (cmd == nullptr) {
 	return;
   }
-  JobsList::getInstance().removeFinishedJobs();
   cmd->execute();
-  // Please note that you must fork smash process for some commands (e.g., external commands....)
 }
 
 ///// prompt /////
@@ -806,6 +808,7 @@ void SetcoreCommand::execute() {
 }
 
 void QuitCommand::execute() {
+    JobsList::getInstance().removeFinishedJobs();
     if (this->num_args==1) {
         exit(0);
     }
@@ -819,6 +822,7 @@ void QuitCommand::execute() {
     }
 }
 void KillCommand::execute() {
+        JobsList::getInstance().removeFinishedJobs();
 	if (num_args != 3) {
 		std::cerr << "smash error: kill: invalid arguments" << std::endl;
 		return;
