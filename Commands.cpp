@@ -262,11 +262,15 @@ void JobsCommand::execute() {
 
 ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
 	invalid_args = false;
+	negative_job_id = false;
 	if (num_args > 2)
 		invalid_args = true;
 	if (num_args == 2) {
 		if (!is_number(args[1])) {
 			invalid_args = true;
+		}
+		else if (args[1][0] == '-') {
+			negative_job_id = true;
 		}
 	}
 }
@@ -274,27 +278,37 @@ ForegroundCommand::ForegroundCommand(const char* cmd_line) : BuiltInCommand(cmd_
 void ForegroundCommand::execute() {
 	if (invalid_args) {
 		std::cerr << "smash error: fg: invalid arguments" << std::endl;
+		return;
+	}
+	if (negative_job_id) {
+		std::cerr << "smash error: fg: job-id " << args[1] << " does not exist" << std::endl;
+		return;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : UNSPECIFIED_JOB_ID;
 	int err;
 	bool success = JobsList::getInstance().bringToFg(job_id, &err);
-	std::cerr << "fg: outside " << std::endl;
 	if (!success) {
-		if (err == JOBS_LIST_EMPTY)
+		if (err == JOBS_LIST_EMPTY) {
 			std::cerr << "smash error: fg: jobs list is empty" << std::endl;
-		else if (err == JOB_ID_NOT_EXIST)
-			std::cerr << "smash error: fg: job-id " << job_id << "does not exist" << std::endl;
+		}
+		else if (err == JOB_ID_NOT_EXIST) {
+			std::cerr << "smash error: fg: job-id " << job_id << " does not exist" << std::endl;
+		}
 	}
 
 }
 
 BackgroundCommand::BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_line) {
 	invalid_args = false;
+	negative_job_id = false;
 	if (num_args > 2)
 		invalid_args = true;
 	if (num_args == 2) {
 		if (!is_number(args[1])) {
 			invalid_args = true;
+		}
+		else if (args[1][0] == '-') {
+			negative_job_id = true;
 		}
 	}
 }
@@ -305,17 +319,22 @@ BackgroundCommand::BackgroundCommand(const char* cmd_line) : BuiltInCommand(cmd_
 void BackgroundCommand::execute() {
 	if (invalid_args) {
 		std::cerr << "smash error: bg: invalid arguments" << std::endl;
+		return;
+	}
+	if (negative_job_id) {
+		std::cerr << "smash error: bg: job-id " << args[1] << " does not exist" << std::endl;
+		return;
 	}
 	int job_id = num_args == 2 ? std::stoi(args[1]) : UNSPECIFIED_JOB_ID;
 	int err;
 	bool success = JobsList::getInstance().resumeJobInBg(job_id, &err);
 	if (!success) {
 		if (err == NO_STOPPED_JOBS)
-			std::cout << "smash error: bg: there is no stopped jobs to resume" << std::endl;
+			std::cerr << "smash error: bg: there is no stopped jobs to resume" << std::endl;
 		if (err == JOB_ID_NOT_EXIST)
-			std::cout << "smash error: bg: job-id " << job_id << " does not exist" << std::endl;
+			std::cerr << "smash error: bg: job-id " << job_id << " does not exist" << std::endl;
 		if (err == JOB_ALREADY_RUNNING)
-			std::cout << "smash error: bg: job-id " << job_id << " is already running in the background" << std::endl;
+			std::cerr << "smash error: bg: job-id " << job_id << " is already running in the background" << std::endl;
 	}
 }
 
@@ -804,7 +823,7 @@ void KillCommand::execute() {
 		std::cerr << "smash error: kill: invalid arguments" << std::endl;
 		return;
 	}
-	if ((args[1][0] != '-') || !is_number(args[1]+1) || !is_number(args[2])) {
+	if ((args[1][0] != '-') || !is_positive_number(args[1]+1) || !is_positive_number(args[2])) {
 		std::cerr << "smash error: kill: invalid arguments" << std::endl;
 		return;
 	}

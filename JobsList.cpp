@@ -85,8 +85,8 @@ void JobsList::removeJobById(int job_id) {
 void JobsList::removeFinishedJobs() { // assumption: stopped jobs cannot be finished
 	for (JobEntry j : all_jobs) {
 		pid_t return_pid = waitpid(j.pid, nullptr, WNOHANG);
-		if (return_pid == -1) {
-			SmallShell::getInstance().syscallErrorHandler("waitpid");
+		if (return_pid == -1) { // no process with this pid (process terminated)
+			removeJobById(j.job_id);
 		} else if (return_pid == 0) {
 			/* child is still running */
 			continue;
@@ -156,6 +156,7 @@ void JobsList::printJobsList() {
 
 /**** fg & bg manipulations ****/
 bool JobsList::bringToFg(int job_id, int* err) {
+	removeFinishedJobs();
 	if (job_id == UNSPECIFIED_JOB_ID) {
 		if (max_jobid == 0) {
 			*err = JOBS_LIST_EMPTY;
@@ -163,12 +164,6 @@ bool JobsList::bringToFg(int job_id, int* err) {
 		}
 		job_id = max_jobid;
 	}
-		std::cerr << "fg: inside " << std::endl;
-		std::cerr << "asking for job-id " << job_id << std::endl;
-		std::cerr << "jobs list: " << std::endl;
-		for (JobEntry j : all_jobs)
-			std::cerr << j.getJobId() << std::endl;
-
 	pid_t pid = getPidByJobId(job_id);
 	if (pid == INVALID_JOB_ID) { // no job with job_pid in jobsList
 		*err = JOB_ID_NOT_EXIST;
@@ -212,6 +207,7 @@ bool JobsList::resumeJobInBg(int job_id, int* err) {
 }
 
 pid_t JobsList::stopFgProc() {
+	removeFinishedJobs();
 	JobEntry* fg_job = getFgJob();
 	if (fg_job == nullptr)
 		return NO_FG_JOB;
@@ -229,7 +225,9 @@ pid_t JobsList::stopFgProc() {
 }
 
 pid_t JobsList::killFgProc() {
+	removeFinishedJobs();
 	JobEntry* fg_job = getFgJob();
+	//std::cout << "fg job is " << fg_job->getJobId() << std::endl;
 	if (fg_job == nullptr)
 		return NO_FG_JOB;
 	pid_t pid = fg_job->getPid();

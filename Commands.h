@@ -43,6 +43,13 @@ public:
         while (it != s.end() && std::isdigit(*it)) ++it;
         return !s.empty() && it == s.end();
     }
+    bool is_positive_number(const std::string& s)
+    {
+        std::string::const_iterator it = s.begin();
+        while (it != s.end() && std::isdigit(*it)) ++it;
+        return !s.empty() && it == s.end();
+    }
+
     //virtual void prepare();
     //virtual void cleanup();
 };
@@ -176,6 +183,7 @@ public:
 class ForegroundCommand : public BuiltInCommand {
 private:
     bool invalid_args;
+    bool negative_job_id;
 public:
     ForegroundCommand(const char* cmd_line);
     virtual ~ForegroundCommand() {}
@@ -185,6 +193,7 @@ public:
 class BackgroundCommand : public BuiltInCommand {
 private:
     bool invalid_args;
+    bool negative_job_id;
 public:
     BackgroundCommand(const char* cmd_line);
     virtual ~BackgroundCommand() {}
