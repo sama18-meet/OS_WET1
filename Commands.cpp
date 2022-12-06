@@ -216,7 +216,7 @@ void ExternalCommand::execute() {
     pid_t pid = fork();
     if (pid < 0) //that is for error
     {
-        std::cerr<<"smash error: fork failed"<<std::endl;
+        SmallShell::getInstance().syscallErrorHandler("fork");
         return;
     }
     else if (pid==0) //the son runs
@@ -227,14 +227,14 @@ void ExternalCommand::execute() {
 
             const char *path_args[] = {"/bin/bash", "-c", this->cmd_line, nullptr};
             if (execv(path_args[0], (char **) path_args) == -1) {
-                perror("smash error: execv failed");
+                SmallShell::getInstance().syscallErrorHandler("execv");
                 return;
             }
         } else // using exec v
         {
             setpgrp();
             if (execvp(this->args[0], this->args) == -1) {
-                perror("smash error: execvp failed");
+                SmallShell::getInstance().syscallErrorHandler("execvp");
                 return;
            }
         }
@@ -244,8 +244,8 @@ void ExternalCommand::execute() {
 	if (!this->Is_back_ground) { ///father should wait 
 		JobsList::getInstance().addJob(this->cmd_line, pid, false, true);
 		if (waitpid(pid, nullptr, WUNTRACED) == -1) {
-			perror("smash error: waitpid failed");
-			return;
+            SmallShell::getInstance().syscallErrorHandler("waitpid");
+            return;
 		}
 	}
 	else {
@@ -505,20 +505,20 @@ void PipeCommand::execute() {
     pipe(fd);
     int pid_1= fork();
     if(pid_1 == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
     }
     if(pid_1 == 0){
         setpgrp();
         if (dup2(fd[1], 1) == -1) {
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
             return;
         }
         if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         Fisrtpipe->execute();
@@ -528,20 +528,20 @@ void PipeCommand::execute() {
     int pid_2= fork();
 
     if(pid_2 == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
     }
     else if (pid_2 == 0) {
         setpgrp();
         if (dup2(fd[0], 0) == -1) {
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
             return;
         }
         if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         Seconedpipe->execute();
@@ -549,21 +549,22 @@ void PipeCommand::execute() {
     }
     else if(pid_1 !=0 && pid_2 != 0) {
         if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
             if (close(fd[1]) == -1) {
-                perror("smash error: close failed");
+                SmallShell::getInstance().syscallErrorHandler("close");
                 return;
             }
         if (waitpid(pid_1, nullptr, WNOHANG) == -1)
         {
-            perror("smash error: waitpid failed");
+            SmallShell::getInstance().syscallErrorHandler("waitpid");
+
             return;
         }
         if (waitpid(pid_2, nullptr, WUNTRACED) == -1)
         {
-            perror("smash error: waitpid failed");
+            SmallShell::getInstance().syscallErrorHandler("waitpid");
             return;
         }
     }
@@ -596,21 +597,22 @@ void SpecialPipeCommand::execute(){
     pipe(fd);
     int pid_1= fork();
     if(pid_1 == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
+        return;
     }
     if(pid_1 == 0){
         setpgrp();
         if (dup2(fd[1], 2) == -1)
         {
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
             return;
         }
         if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         Fisrtpipe->execute();
@@ -620,21 +622,22 @@ void SpecialPipeCommand::execute(){
 
     int pid_2= fork();
     if(pid_2 == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
+        return;
     }
     if (pid_2 == 0) {
         setpgrp();
         if (dup2(fd[0], 0) == -1)
         {
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
             return;
         }
         if (close(fd[0]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         if (close(fd[1]) == -1) {
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
             return;
         }
         Seconedpipe->execute();
@@ -677,25 +680,28 @@ void RedirectionCommandOverRide::execute() {
     int path_redirect = open(path.c_str(),O_WRONLY|O_CREAT | O_TRUNC, 0655);
 
     if(path_redirect < 0){
-        perror("smash error: open failed");
+        SmallShell::getInstance().syscallErrorHandler("open");
         return;
     }
 
     int pid = fork();
     if(pid == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
+        return;
     }
     if (pid ==0) {
         setpgrp();
         if (dup2(path_redirect, 1) < 0 ) {
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
+            return;
         }
         FisrtCommand->execute();
         exit(1);
     }
     else{
         if(close(path_redirect) == 1){
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
+            return;
         }
         wait(NULL);
     }
@@ -724,17 +730,19 @@ void Appened::execute() {
     int path_redirect = open(path.c_str(),O_WRONLY | O_CREAT | O_APPEND , 0655);
 
     if(path_redirect < 0){
-        perror("smash error: open failed");
+        SmallShell::getInstance().syscallErrorHandler("open");
         return;
     }
     int pid = fork();
     if(pid == -1){
-        perror("smash error: fork failed");
+        SmallShell::getInstance().syscallErrorHandler("fork");
+        return;
     }
     if (pid ==0) {
         setpgrp();
         if(! dup2(path_redirect, 1) ){
-            perror("smash error: dup2 failed");
+            SmallShell::getInstance().syscallErrorHandler("dup2");
+            return;
         }
         FirstCommand->execute();
         exit(1);
@@ -743,7 +751,8 @@ void Appened::execute() {
     else if (pid >0 )
     {
         if(close(path_redirect) == 1){
-            perror("smash error: close failed");
+            SmallShell::getInstance().syscallErrorHandler("close");
+            return;
         }
         wait(NULL);
     }
@@ -777,7 +786,7 @@ SetcoreCommand::SetcoreCommand(const char *cmd_line) : BuiltInCommand(cmd_line) 
 void SetcoreCommand::execute() {
     if (this->num_args>3)
     {
-        perror("smash error: fare: invalid arguments");
+        cerr << "smash error: setcore: invalid arguments"<< std::endl;
         return;
     }
     cpu_set_t my_set;        /* Define my cpu_set bit mask. */
@@ -794,12 +803,12 @@ void SetcoreCommand::execute() {
    {
        if (errno ==EINVAL || errno == EPERM   )
        {
-           perror("smash error: fare: invalid core number");
+           std::cerr <<"smash error: setcore: invalid core number"<< std::endl;
            return;
 
        }
        else {
-           perror("smash error: fare: invalid arguments");
+           perror("smash error: setcore");
            return;
 
        }
